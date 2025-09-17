@@ -1,0 +1,199 @@
+\documentclass[12pt,a4paper]{article}
+
+% Essential packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{float}
+
+% Page geometry
+\geometry{
+    top=2.5cm,
+    bottom=2.5cm,
+    left=2.5cm,
+    right=2.5cm,
+    headheight=15pt
+}
+
+% Color definitions
+\definecolor{primaryblue}{RGB}{41, 128, 185}
+\definecolor{secondaryblue}{RGB}{52, 152, 219}
+\definecolor{darkgray}{RGB}{44, 62, 80}
+\definecolor{lightgray}{RGB}{149, 165, 166}
+\definecolor{accentgreen}{RGB}{39, 174, 96}
+\definecolor{codebackground}{RGB}{248, 249, 250}
+
+% Hyperlink setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    filecolor=primaryblue,
+    urlcolor=primaryblue,
+    citecolor=primaryblue,
+    pdftitle={MD-P1-Report},
+    pdfauthor={Group 6}
+}
+
+% Header and footer setup
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{darkgray}{\small MD-P1-Report}}
+\fancyhead[R]{\textcolor{darkgray}{\small Group 6}}
+\fancyfoot[C]{\textcolor{lightgray}{\thepage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{primaryblue}\leaders\hrule height \headrulewidth\hfill}}
+
+% Title page style
+\fancypagestyle{titlepage}{
+    \fancyhf{}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+
+% Section title formatting
+\titleformat{\section}
+{\Large\bfseries\color{primaryblue}}
+{\thesection}
+{1em}
+{}
+[\vspace{-0.5em}\textcolor{primaryblue}{\titlerule[1pt]}]
+
+\titleformat{\subsection}
+{\large\bfseries\color{secondaryblue}}
+{\thesubsection}
+{1em}
+{}
+
+\titleformat{\subsubsection}
+{\normalsize\bfseries\color{darkgray}}
+{\thesubsubsection}
+{1em}
+{}
+
+% Table of contents styling
+\renewcommand{\cftsecfont}{\color{primaryblue}\bfseries}
+\renewcommand{\cftsubsecfont}{\color{secondaryblue}}
+\renewcommand{\cftsecpagefont}{\color{primaryblue}\bfseries}
+\renewcommand{\cftsubsecpagefont}{\color{secondaryblue}}
+
+% Code listing setup
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{codebackground},
+    commentstyle=\color{lightgray},
+    keywordstyle=\color{primaryblue},
+    numberstyle=\tiny\color{lightgray},
+    stringstyle=\color{accentgreen},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    frameround=tttt,
+    rulecolor=\color{lightgray}
+}
+\lstset{style=mystyle}
+
+% Custom title page commands
+\title{}
+\author{}
+\date{}
+
+\begin{document}
+
+% Custom title page
+\thispagestyle{titlepage}
+\begin{center}
+
+% Top spacing
+\vspace*{2cm}
+
+% Main title with decorative elements
+{\color{primaryblue}\rule{\textwidth}{2pt}}
+\vspace{0.5cm}
+
+{\Huge\bfseries\color{primaryblue} DATA MINING}
+\vspace{0.3cm}
+
+{\LARGE\color{secondaryblue} Food Marketing}
+\vspace{0.5cm}
+
+{\color{primaryblue}\rule{\textwidth}{2pt}}
+
+\vspace{1.5cm}
+
+% Project identifier
+{\Large\bfseries\color{darkgray} D3-Report}
+
+\vspace{2cm}
+
+% Group information
+{\large\bfseries\color{primaryblue} Group 6}
+
+\vspace{1cm}
+
+% Team members in a nice box
+\fcolorbox{primaryblue}{white}{
+\begin{minipage}{0.7\textwidth}
+\centering
+\vspace{0.5cm}
+{\large\bfseries\color{primaryblue} Team Members}
+\vspace{0.5cm}
+
+\begin{tabular}{@{}c@{}}
+\textcolor{darkgray}{Font I Cabarrocas, Marc} \\[0.3cm]
+\textcolor{darkgray}{Garcia Ayala, Jesus} \\[0.3cm]
+\textcolor{darkgray}{Hernández Navarro, Arnau} \\[0.3cm]
+\textcolor{darkgray}{Khalipskaya Soboleva, Aglaya} \\[0.3cm]
+\textcolor{darkgray}{Mediavilla Jiménez, Alex Michel} \\
+\end{tabular}
+\vspace{0.5cm}
+\end{minipage}
+}
+
+\vspace{1.5cm}
+
+% Teacher information
+{\large\bfseries\color{secondaryblue} Professor}
+\vspace{0.3cm}
+
+{\large\color{darkgray} Sergi Ramirez Mitjans}
+
+\vspace{2cm}
+
+% Date
+{\large\color{lightgray} \today}
+
+\vspace{1cm}
+
+% Bottom decorative line
+{\color{primaryblue}\rule{0.5\textwidth}{1pt}}
+
+\end{center}
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\end{document}
