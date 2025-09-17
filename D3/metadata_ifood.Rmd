@@ -1,0 +1,222 @@
+---
+title: "Metadata — iFood Dataset"
+author: "Generated for Laura"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+  word_document: default
+---
+
+> **How to use:** Place this `.Rmd` in the same folder as `ifood_base.csv` (or update the `data_path` below). Knit to HTML/Word to get a nice metadata table. It will also write `data_dictionary.csv` next to the Rmd.
+
+# 1. Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+required_pkgs <- c("readr","dplyr","tidyr","stringr","purrr","lubridate","knitr","kableExtra")
+to_install <- setdiff(required_pkgs, rownames(installed.packages()))
+if (length(to_install)) install.packages(to_install, repos = "https://cloud.r-project.org")
+
+library(readr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(purrr)
+library(lubridate)
+library(knitr)
+library(kableExtra)
+
+theme_kable <- function(tbl) {
+  kbl(tbl, booktabs = TRUE, align = "l") |>
+    kable_styling(full_width = FALSE, bootstrap_options = c("striped","hover","condensed"), font_size = 12)
+}
+```
+
+# 2. Load data
+
+```{r load-data}
+# Adjust path if needed
+data_path <- "C:/Users/jesus.jose.garcia/Downloads/D1_Oriol_Ribas_Miquel_Jesús_García_Ayala_Marc_Romera_Peral_Adrià_Tercero_González/D1_Oriol_Ribas_Miquel_Jesús_García_Ayala_Marc_Romera_Peral_Adrià_Tercero_González/ifood_base.csv"
+stopifnot(file.exists(data_path))
+df <- readr::read_csv(data_path, show_col_types = FALSE)
+n_rows <- nrow(df); n_cols <- ncol(df)
+glue_msg <- paste0("Loaded **", n_rows, "** rows × **", n_cols, "** columns from `", data_path, "`.")
+glue_msg
+```
+
+# 3. Variable metadata (dictionary)
+
+The table below combines **your provided definitions** with **computed summaries** from the data (min/max or levels).
+
+```{r dictionary}
+# --- Your provided descriptions ---
+descriptions <- c(
+  Id = "The ID of the customer",
+  Income = "Customer’s yearly household income.",
+  Kidhome = "Number of small children in the customer’s household.",
+  Teenhome = "Number of teenagers in the customer’s household.",
+  Recency = "Number of days since the last purchase.",
+  MntWines = "Amount spent on wine in the last 2 years.",
+  MntFruits = "Amount spent on fruits in the last 2 years.",
+  MntMeatProducts = "Amount spent on meat products in the last 2 years.",
+  MntFishProducts = "Amount spent on fish products in the last 2 years.",
+  MntSweetProducts = "Amount spent on sweet products in the last 2 years.",
+  MntGoldProds = "Amount spent on gold products in the last 2 years.",
+  NumDealsPurchases = "Number of purchases made with a discount.",
+  NumWebPurchases = "Number of purchases made through the website.",
+  NumCatalogPurchases = "Number of purchases made using a catalog.",
+  NumStorePurchases = "Number of purchases made directly in a store.",
+  NumWebVisitsMonth = "Number of visits to the company’s website by the customer in the last month.",
+  AcceptedCmp1 = "Whether the customer accepted the offer in the 1st campaign.",
+  AcceptedCmp2 = "Whether the customer accepted the offer in the 2nd campaign.",
+  AcceptedCmp3 = "Whether the customer accepted the offer in the 3rd campaign.",
+  AcceptedCmp4 = "Whether the customer accepted the offer in the 4th campaign.",
+  AcceptedCmp5 = "Whether the customer accepted the offer in the 5th campaign.",
+  Complain = "Whether the customer has filed a complaint in the last 2 years.",
+  Z_CostContact = "Fixed cost of contacting the customer.",
+  Z_Revenue = "Fixed revenue value.",
+  Response = "Whether the customer accepted the offer in the last campaign.",
+  Year_Birth = "Customer’s year of birth.",
+  Dt_Customer = "Date when the customer enrolled.",
+  Marital_Status = "Marital status of the customer.",
+  Education = "The level of studies the consumer has."
+)
+
+# --- Your provided variable type classification ---
+var_type_provided <- c(
+  Id = "ID",
+  Income = "Numerical Continuous",
+  Kidhome = "Numerical Discrete",
+  Teenhome = "Numerical Discrete",
+  Recency = "Numerical Discrete",
+  MntWines = "Numerical Continuous",
+  MntFruits = "Numerical Continuous",
+  MntMeatProducts = "Numerical Continuous",
+  MntFishProducts = "Numerical Continuous",
+  MntSweetProducts = "Numerical Continuous",
+  MntGoldProds = "Numerical Continuous",
+  NumDealsPurchases = "Numerical Discrete",
+  NumWebPurchases = "Numerical Discrete",
+  NumCatalogPurchases = "Numerical Discrete",
+  NumStorePurchases = "Numerical Discrete",
+  NumWebVisitsMonth = "Numerical Discrete",
+  AcceptedCmp1 = "Categorical Binary",
+  AcceptedCmp2 = "Categorical Binary",
+  AcceptedCmp3 = "Categorical Binary",
+  AcceptedCmp4 = "Categorical Binary",
+  AcceptedCmp5 = "Categorical Binary",
+  Complain = "Categorical Binary",
+  Z_CostContact = "Numerical Discrete",
+  Z_Revenue = "Numerical Discrete",
+  Response = "Categorical Binary",
+  Year_Birth = "Numerical Discrete",
+  Dt_Customer = "Date",
+  Marital_Status = "Categorical Nominal",
+  Education = "Categorical Nominal"
+)
+
+# --- Optional manual "possible values" overrides where they are fixed/known ---
+manual_possible <- c(
+  Id = "Random 3–5 digits",
+  Income = "> 0",
+  Kidhome = "0–5",
+  Teenhome = "0–5",
+  Recency = "0–365 (approx)",
+  MntWines = "≥ 0",
+  MntFruits = "≥ 0",
+  MntMeatProducts = "≥ 0",
+  MntFishProducts = "≥ 0",
+  MntSweetProducts = "≥ 0",
+  MntGoldProds = "≥ 0",
+  NumDealsPurchases = "≥ 0",
+  NumWebPurchases = "≥ 0",
+  NumCatalogPurchases = "≥ 0",
+  NumStorePurchases = "≥ 0",
+  NumWebVisitsMonth = "≥ 0",
+  AcceptedCmp1 = "0, 1",
+  AcceptedCmp2 = "0, 1",
+  AcceptedCmp3 = "0, 1",
+  AcceptedCmp4 = "0, 1",
+  AcceptedCmp5 = "0, 1",
+  Complain = "0, 1",
+  Z_CostContact = "3",
+  Z_Revenue = "11",
+  Response = "0, 1",
+  Year_Birth = "1900–2020",
+  Dt_Customer = "Date between 1900-01-01 and 2020-12-31",
+  Marital_Status = "Divorced, Married, Single, Together, Widow",
+  Education = "2nd Cycle, Basic, Graduation, Master, PhD"
+)
+
+# Rename common variations if present in the CSV
+df <- df %>% rename(
+  Year_Birth = dplyr::any_of(c("Year_Birth","Year_birth","year_birth","Year","YearBirth")),
+  Dt_Customer = dplyr::any_of(c("Dt_Customer","DtCustomer","EnrollmentDate","Customer_Date","date_customer")),
+  Marital_Status = dplyr::any_of(c("Marital_Status","Marital","marital_status")),
+  Education = dplyr::any_of(c("Education","education"))
+)
+
+# Helper: summarize possible values from data
+summ_possible <- function(v) {
+  x <- df[[v]]
+  # Try to coerce dates if they are character
+  if (inherits(x, "character")) {
+    x_try <- suppressWarnings(lubridate::ymd(x))
+    if (!all(is.na(x_try))) x <- x_try
+  }
+  if (inherits(x, "Date")) {
+    rng <- range(x, na.rm = TRUE)
+    return(paste0(format(rng[1], "%Y-%m-%d"), " – ", format(rng[2], "%Y-%m-%d")))
+  }
+  nu <- dplyr::n_distinct(x, na.rm = TRUE)
+  if (is.numeric(x)) {
+    rng <- range(x, na.rm = TRUE)
+    nonneg <- ifelse(all(x[!is.na(x)] >= 0), " (≥ 0)", "")
+    return(paste0(format(rng[1], scientific = FALSE, trim = TRUE), " – ",
+                  format(rng[2], scientific = FALSE, trim = TRUE), nonneg))
+  }
+  # Categorical-ish
+  vals <- sort(unique(x))
+  vals <- vals[!is.na(vals)]
+  if (length(vals) == 0) return("—")
+  if (length(vals) <= 10) return(paste(vals, collapse = ", "))
+  paste0(paste(vals[1:10], collapse=", "), ", … (", length(vals), " levels)")
+}
+
+# Build data dictionary
+vars <- colnames(df)
+dtypes <- sapply(df, function(x) paste(class(x), collapse = "/"))
+
+dictionary <- tibble::tibble(
+  `Variable name` = vars,
+  `R Type` = unname(dtypes),
+  `Variable Type` = var_type_provided[vars] %||% "",
+  `Description` = descriptions[vars] %||% ""
+) |>
+  mutate(`Possible values (from data)` = map_chr(vars, summ_possible),
+         `Possible values (provided)` = manual_possible[vars] %||% NA_character_) |>
+  mutate(`Possible values` = coalesce(`Possible values (provided)`, `Possible values (from data)`)) |>
+  select(`Variable name`, `R Type`, `Variable Type`, Description, `Possible values`)
+
+# Order by original column order
+dictionary <- dictionary
+
+dictionary |> theme_kable()
+```
+
+## Save as CSV
+
+```{r save-csv}
+# Also write to a CSV next to the data for reuse
+out_csv <- "data_dictionary.csv"
+readr::write_csv(dictionary, out_csv)
+paste0("Wrote: ", normalizePath(out_csv))
+```
+
+# 4. Notes
+
+- **Variable Type** reflects your provided classification and may differ from a strict statistical interpretation (e.g., monetary amounts shown as “continuous” though often integer-valued in this dataset).
+- **Possible values** prefer your provided ranges when available; otherwise they are inferred from the actual data at knit time.
+- If your CSV uses different column names (e.g., `Year_birth` vs. `Year_Birth`), the Rmd attempts to standardize common variants.
