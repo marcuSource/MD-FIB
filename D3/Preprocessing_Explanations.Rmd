@@ -1,0 +1,218 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+### *Load required libraries*
+```{r}
+# Suppress startup messages of library dplyr
+suppressPackageStartupMessages(library(dplyr))
+# Loading required libraries
+library(dplyr, quietly = TRUE)
+library(class, quietly = TRUE)
+```
+### 0. Load raw dataset
+```{r}
+ifood <- read.csv("ifood_base.csv", sep=",", header=TRUE, stringsAsFactors = FALSE)
+```
+### 1. Remove irrelevant columns
+```{r}
+ifood <- ifood[, !names(ifood) %in% c("ID", "Z_CostContact", "Z_Revenue")]
+```
+### 2. Transform date-related variables
+```{r}
+ifood$Age <- 2020 - ifood$Year_Birth
+ifood <- ifood[, !names(ifood) %in% c("Year_Birth")]
+reference_date <- as.Date("2020-12-31")
+ifood$CustDays <- as.numeric(reference_date - as.Date(ifood$Dt_Customer, format="%Y-%m-%d"))
+ifood <- ifood[, !names(ifood) %in% c("Dt_Customer")]
+```
+### 3. Rename columns for easier access
+```{r}
+colnames(ifood) <- gsub("NumDealsPurchases", "DealsPurc", colnames(ifood))
+colnames(ifood) <- gsub("NumWebPurchases", "WebPurc", colnames(ifood))
+colnames(ifood) <- gsub("NumStorePurchases", "StorePurc", colnames(ifood))
+colnames(ifood) <- gsub("NumWebVisitsMonth", "WebVisits", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmpOverall", "CmpOverall", colnames(ifood))
+colnames(ifood) <- gsub("MntWines", "WineExp", colnames(ifood))
+colnames(ifood) <- gsub("MntFruits", "FruitExp", colnames(ifood))
+colnames(ifood) <- gsub("MntMeatProducts", "MeatExp", colnames(ifood))
+colnames(ifood) <- gsub("MntFishProducts", "FishExp", colnames(ifood))
+colnames(ifood) <- gsub("MntSweetProducts", "SweetExp", colnames(ifood))
+colnames(ifood) <- gsub("MntGoldProds", "GoldExp", colnames(ifood))
+colnames(ifood) <- gsub("Marital_Status", "MaritalSts", colnames(ifood))
+colnames(ifood) <- gsub("NumCatalogPurchases", "CatalogPurc", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmp1", "AccCmp1", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmp2", "AccCmp2", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmp3", "AccCmp3", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmp4", "AccCmp4", colnames(ifood))
+colnames(ifood) <- gsub("AcceptedCmp5", "AccCmp5", colnames(ifood))
+```
+### 4. Handle outliers
+```{r}
+ifood$Age <- ifelse(ifood$Age > 80, 80, ifood$Age)
+```
+### 5. Handle missing values
+```{r}
+ifood <- ifood[!ifood$MaritalSts %in% c("YOLO", "Absurd"),]
+ifood$MaritalSts[ifood$MaritalSts == "Alone"] <- "Single"
+```
+### 6. Impute missing Income using KNN
+```{r}
+ifood$Income <- ifelse(ifood$Income < 12500, NA, ifood$Income)
+
+num_vars <- sapply(ifood, is.numeric)
+complete_vars <- colnames(ifood)[num_vars]
+missing_threshold <- 0.2 * nrow(ifood)
+complete_vars <- complete_vars[colSums(is.na(ifood[, complete_vars])) < missing_threshold]
+aux <- ifood[, complete_vars]
+
+var <- "Income"
+aux1 <- aux[!is.na(ifood[[var]]), , drop = FALSE]
+aux2 <- aux[is.na(ifood[[var]]), , drop = FALSE]
+
+cols_na <- colnames(aux2)[colSums(is.na(aux2)) > 0]
+if (length(cols_na) > 0) {
+  aux1 <- aux1[, !(colnames(aux1) %in% cols_na), drop = FALSE]
+  aux2 <- aux2[, !(colnames(aux2) %in% cols_na), drop = FALSE]
+}
+
+knn_impute <- knn(aux1, aux2, ifood[[var]][!is.na(ifood[[var]])], k = 1)
+ifood[[var]][is.na(ifood[[var]])] <- as.numeric(as.character(knn_impute))
+```
+### 7. Correct calculation of `TotAccCmp`
+```{r}
+ifood$TotAccCmp <- ifood$AccCmp1 + ifood$AccCmp2 + ifood$AccCmp3 + ifood$AccCmp4 + ifood$AccCmp5
+```
+### 8. Remove duplicate records
+```{r}
+ifood <- ifood %>% arrange(desc(Response)) %>% distinct_at(vars(-Response), .keep_all = TRUE)
+```
+### 9. Create `TotalExp` before using it
+```{r}
+ifood$TotalExp <- rowSums(ifood[, c("WineExp", "FruitExp", "MeatExp", "FishExp", "SweetExp", "GoldExp")], na.rm = TRUE)
+```
+### 10. Save cleaned dataset
+```{r}
+write.csv(ifood, "ifood_cleaned.csv", row.names = FALSE)
+```
+
+---
+
+# **Variable Creation**
+
+## *Second-Generation*
+
+### Total Purchases
+```{r}
+ifood$TotalPurchases <- ifood$DealsPurc + ifood$WebPurc + ifood$CatalogPurc + ifood$StorePurc
+```
+### Purchase Frequency
+```{r}
+ifood$PurchaseFrequency <- ifelse(ifood$CustDays > 0, ifood$TotalPurchases / (ifood$CustDays / 30), 0)
+```
+### Preferred Product Category
+```{r}
+product_categories <- c("WineExp", "FruitExp", "MeatExp", "FishExp", "SweetExp", "GoldExp")
+max_index <- apply(ifood[ , product_categories], 1, which.max)
+ifood$PreferredProductCategory <- product_categories[max_index]
+ifood$PreferredProductCategory <- as.factor(ifood$PreferredProductCategory)
+```
+### Preferred Purchase Channel
+```{r}
+channels <- c("DealsPurc", "WebPurc", "CatalogPurc", "StorePurc")
+max_ch_index <- apply(ifood[ , channels], 1, which.max)
+ifood$PreferredChannel <- channels[max_ch_index]
+ifood$PreferredChannel <- as.factor(ifood$PreferredChannel)
+```
+### Average Spend Per Purchase
+```{r}
+ifood$AvgSpendPerPurchase <- ifelse(ifood$TotalPurchases > 0, ifood$TotalExp / ifood$TotalPurchases, 0)
+```
+### HasChildren
+```{r}
+ifood$HasChildren <- ifelse(ifood$Kidhome + ifood$Teenhome > 0, 1, 0)
+```
+### IncomeSegment
+```{r}
+income_quantiles <- quantile(ifood$Income, probs = c(0.33, 0.66), na.rm = TRUE)
+ifood$IncomeSegment <- cut(ifood$Income, breaks = c(-Inf, income_quantiles[1], income_quantiles[2], Inf),
+                           labels = c("Low", "Medium", "High"))
+```
+### CustomerTenure
+```{r}
+ifood$CustomerTenure <- ifood$CustDays / 365
+```
+### CampaignAcceptanceRate
+```{r}
+ifood$CampaignAcceptanceRate <- ifelse(ifood$TotAccCmp > 0, ifood$TotAccCmp / 5, 0)
+```
+
+## *Third-Generation*
+
+### **Third-Generation Feature 1: Customer Segmentation via Clustering**
+
+### Prepare data for clustering: use Recency, TotalPurchases (frequency), and TotalExp (monetary)
+```{r}
+cluster_data <- ifood %>% select(Recency, TotalPurchases, TotalExp)
+```
+### Scale the data for clustering
+```{r}
+cluster_data_scaled <- scale(cluster_data)
+```
+### Perform k-means clustering with 3 clusters (as an example)
+```{r}
+set.seed(123)  # for reproducibility
+k3 <- kmeans(cluster_data_scaled, centers = 3, nstart = 25)  # nstart for better convergence
+```
+### Add the cluster assignment as a new feature
+```{r}
+ifood$CustomerSegment <- as.factor(k3$cluster)
+```
+#### *(Customers are now labeled 1, 2, or 3 based on their cluster segment)*
+
+---
+
+### **Third-Generation Feature 2: Propensity Score via Logistic Regression**
+### Fit a logistic regression model to predict campaign response (Response) using relevant features
+```{r}
+propensity_model <- glm(Response ~ Income + Recency + TotalExp + TotalPurchases + TotAccCmp + Age + MaritalSts,
+                        data = ifood, family = binomial)
+```
+### Get predicted probabilities (propensity to respond)
+```{r}
+ifood$PropensityScore <- predict(propensity_model, ifood, type = "response")
+```
+#### *(PropensityScore is the model's predicted probability of Response=1 for each customer)*
+### Quick summary of PropensityScore range
+```{r}
+summary(ifood$PropensityScore)
+```
+---
+### **Third-Generation Feature 3: Engagement Index**
+
+### Normalize components between 0 and 1
+
+#### *Note: For Recency, a lower value means more recent (more engaged), so we invert it.*
+```{r}
+recency_norm   <- (max(ifood$Recency) - ifood$Recency) / max(ifood$Recency)          # invert recency
+frequency_norm <- ifood$TotalPurchases / max(ifood$TotalPurchases)                   # purchases normalized
+monetary_norm  <- ifood$TotalExp / max(ifood$TotalExp)                               # spending normalized
+campaign_norm  <- (ifood$TotAccCmp + ifood$Response) / 6                             # campaign acceptance (out of 6 campaigns total including last response)
+webvisit_norm  <- ifood$WebVisits / max(ifood$WebVisits)                             # web visits normalized
+```
+
+### Calculate engagement index as average of all five components, scaled to 0-100
+```{r}
+ifood$EngagementIndex <- (recency_norm + frequency_norm + monetary_norm + campaign_norm + webvisit_norm) / 5 * 100
+```
+### Preview EngagementIndex distribution
+```{r}
+summary(ifood$EngagementIndex)
+```
+### Save enriched dataset
+```{r}
+write.csv(ifood, "ifood_enriched.csv", row.names = FALSE)
+```

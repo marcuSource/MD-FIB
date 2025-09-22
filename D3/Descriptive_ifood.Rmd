@@ -1,0 +1,192 @@
+---
+title: "Basic Descriptive Statistics — iFood CSV (DOCX‑safe)"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+  word_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+# Reference Descriptive Script (DOCX‑safe)
+
+**Note:** Use forward slashes in paths on Windows (e.g., `C:/Users/...`).  
+Place this `.Rmd` in the same folder as `ifood_base.csv` or update `data_path` below.
+
+This version avoids HTML‑only features so it **knits to Word (.docx) without errors**.
+If you knit to HTML, it will still show a floating ToC and nicer tables.
+
+```{r setup, message=FALSE, warning=FALSE}
+required_pkgs <- c("readr","dplyr","tidyr","stringr","purrr","lubridate","knitr")
+to_install <- setdiff(required_pkgs, rownames(installed.packages()))
+if (length(to_install)) install.packages(to_install, repos = "https://cloud.r-project.org")
+
+library(readr); library(dplyr); library(tidyr); library(stringr); library(purrr)
+library(lubridate); library(knitr)
+
+# Safe Windows path
+safe_path <- function(p) ifelse(is.na(p) || !nzchar(p), p, gsub("\\\\", "/", p))
+
+# Table helper: uses HTML styling only when knitting to HTML; plain kable for Word/PDF
+theme_table <- function(tbl) {
+  if (knitr::is_html_output()) {
+    if (!requireNamespace("kableExtra", quietly = TRUE)) {
+      return(knitr::kable(tbl, align = "l"))
+    }
+    kableExtra::kbl(tbl, booktabs = TRUE, align = "l") |>
+      kableExtra::kable_styling(full_width = FALSE, bootstrap_options = c("striped","hover","condensed"), font_size = 11)
+  } else {
+    knitr::kable(tbl, align = "l")
+  }
+}
+
+# Plot colors (enough for most categorical vars)
+listOfColors <- grDevices::rainbow(40)
+```
+
+## Read data
+
+```{r read, message=FALSE, warning=FALSE}
+# If your CSV is elsewhere, replace with an absolute path using forward slashes
+# e.g., data_path <- "ifood_base.csv"
+data_path <- "ifood_base.csv"
+data_path <- safe_path(data_path)
+
+if (!file.exists(data_path)) {
+  stop(paste0("CSV not found at: '", data_path, "'. ",
+              "If you're on Windows and used backslashes (e.g., C:\\Users\\...), ",
+              "replace them with forward slashes like C:/Users/..."))
+}
+
+dd <- readr::read_csv(data_path, show_col_types = FALSE)
+```
+
+## Dimensions and variable names
+
+```{r dims-names}
+dim(dd)
+n <- nrow(dd); K <- ncol(dd)
+n; K
+
+names(dd)
+```
+
+## Optional: Declare/standardize types (recommended for iFood)
+
+```{r declare-types, message=FALSE, warning=FALSE}
+# Normalize common alternative names
+dd <- dd %>% rename(
+  Year_Birth    = dplyr::any_of(c("Year_Birth","Year_birth","year_birth","Year","YearBirth")),
+  Dt_Customer   = dplyr::any_of(c("Dt_Customer","DtCustomer","EnrollmentDate","Customer_Date","date_customer")),
+  Marital_Status= dplyr::any_of(c("Marital_Status","Marital","marital_status")),
+  Education     = dplyr::any_of(c("Education","education"))
+)
+
+# Parse date column if present
+if ("Dt_Customer" %in% names(dd)) {
+  dd$Dt_Customer <- suppressWarnings(parse_date_time(dd$Dt_Customer,
+                            orders = c("dmy","ymd","mdy","d-b-Y","Y-m-d","d/m/Y","m/d/Y")))
+  dd$Dt_Customer <- as.Date(dd$Dt_Customer)
+}
+
+# Categorical text columns
+for (col in c("Education","Marital_Status")) {
+  if (col %in% names(dd)) dd[[col]] <- as.factor(dd[[col]])
+}
+
+# Binary 0/1 columns (if present)
+bin_cols <- intersect(c("AcceptedCmp1","AcceptedCmp2","AcceptedCmp3","AcceptedCmp4",
+                        "AcceptedCmp5","Complain","Response"), names(dd))
+for (bc in bin_cols) {
+  if (all(na.omit(unique(dd[[bc]])) %in% c(0,1))) {
+    dd[[bc]] <- factor(dd[[bc]], levels = c(0,1))
+  }
+}
+
+str(dd)
+```
+
+## Missingness overview
+
+```{r missingness}
+miss_tbl <- tibble::tibble(
+  variable = names(dd),
+  missing_n = sapply(dd, function(x) sum(is.na(x))),
+  missing_pct = round(100 * sapply(dd, function(x) mean(is.na(x))), 2)
+) %>% arrange(desc(missing_pct))
+
+theme_table(miss_tbl)
+```
+
+## Descriptive function
+
+```{r descriptiva-fn}
+descriptiva <- function(X, nom, nrows_total) {
+  if (!(is.numeric(X) || inherits(X, "Date"))) {
+    # Categorical
+    frecs <- table(as.factor(X), useNA = "ifany")
+    proportions <- frecs / nrows_total
+    pie(frecs, cex = 0.7, main = paste("Pie of", nom))
+    barplot(frecs, las = 3, cex.names = 0.7, main = paste("Barplot of", nom), col = listOfColors)
+    cat("\nNumber of modalities:", length(frecs), "\n")
+    cat("\nFrequency table\n"); print(frecs)
+    cat("\nRelative frequency table (proportions)\n"); print(round(proportions, 4))
+    cat("\nFrequency table sorted\n"); print(sort(frecs, decreasing = TRUE))
+    cat("\nRelative frequency table (proportions) sorted\n"); print(round(sort(proportions, decreasing = TRUE), 4))
+  } else {
+    if (inherits(X, "Date")) {
+      # Date
+      cat("\nExtended Summary Statistics (Date)\n"); print(summary(X))
+      sd_days <- tryCatch(sd(as.numeric(X), na.rm = TRUE), error = function(e) NA_real_)
+      cat("\nsd (days):", round(sd_days, 3), "\n")
+      hist(X, breaks = "weeks", main = paste("Histogram (weekly) of", nom), xlab = nom)
+    } else {
+      # Numeric
+      hist(X, main = paste("Histogram of", nom), xlab = nom)
+      boxplot(X, horizontal = TRUE, main = paste("Boxplot of", nom), xlab = nom)
+      cat("\nExtended Summary Statistics\n"); print(summary(X))
+      sd_x <- sd(X, na.rm = TRUE)
+      mn_x <- mean(X, na.rm = TRUE)
+      cat("\nsd:", round(sd_x, 6), "\n")
+      cat("vc (sd/mean):", ifelse(is.na(mn_x) || mn_x == 0, NA, round(sd_x / mn_x, 6)), "\n")
+    }
+  }
+}
+```
+
+## Run basic descriptives for all variables
+
+```{r run-descriptive, fig.width=7, fig.height=4}
+# Exclude known constants/IDs by default; adjust as needed
+exclude <- intersect(c("Id","Z_CostContact","Z_Revenue"), names(dd))
+actives <- setdiff(seq_len(ncol(dd)), match(exclude, names(dd)))
+
+for (k in actives) {
+  cat("\n\n## Variable", k, "—", names(dd)[k], "\n")
+  descriptiva(dd[[k]], names(dd)[k], n)
+}
+```
+
+## Appendix: Quick numeric summary table
+
+```{r quick-numeric-summary, message=FALSE, warning=FALSE}
+num_vars <- names(dd)[sapply(dd, is.numeric)]
+if (length(num_vars)) {
+  num_summary <- dd %>%
+    summarise(across(all_of(num_vars),
+                     list(min = ~min(.x, na.rm = TRUE),
+                          q1  = ~quantile(.x, 0.25, na.rm = TRUE),
+                          mean= ~mean(.x, na.rm = TRUE),
+                          median= ~median(.x, na.rm = TRUE),
+                          q3  = ~quantile(.x, 0.75, na.rm = TRUE),
+                          max = ~max(.x, na.rm = TRUE),
+                          sd  = ~sd(.x, na.rm = TRUE)), .names = "{.col}_{.fn}")) %>%
+    pivot_longer(everything(), names_to = c("variable","stat"), names_sep = "_") %>%
+    pivot_wider(names_from = stat, values_from = value)
+  theme_table(num_summary)
+} else {
+  cat("No numeric variables detected.")
+}
+```

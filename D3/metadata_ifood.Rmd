@@ -1,6 +1,6 @@
 ---
 title: "Metadata — iFood Dataset"
-author: "Generated for Laura"
+author: "Generated for Jesus"
 output:
   html_document:
     toc: true
@@ -38,7 +38,7 @@ theme_kable <- function(tbl) {
 
 ```{r load-data}
 # Adjust path if needed
-data_path <- "C:/Users/jesus.jose.garcia/Downloads/D1_Oriol_Ribas_Miquel_Jesús_García_Ayala_Marc_Romera_Peral_Adrià_Tercero_González/D1_Oriol_Ribas_Miquel_Jesús_García_Ayala_Marc_Romera_Peral_Adrià_Tercero_González/ifood_base.csv"
+data_path <- "ifood_base.csv"
 stopifnot(file.exists(data_path))
 df <- readr::read_csv(data_path, show_col_types = FALSE)
 n_rows <- nrow(df); n_cols <- ncol(df)
