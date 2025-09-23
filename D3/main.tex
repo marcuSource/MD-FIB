@@ -39,6 +39,14 @@
 \definecolor{accentgreen}{RGB}{39, 174, 96}
 \definecolor{codebackground}{RGB}{248, 249, 250}
 
+% Define team member colors
+\definecolor{JesusGreen}{HTML}{27ae60}
+\definecolor{ArnauPurple}{HTML}{9b59b6}
+\definecolor{MarcBlue}{HTML}{2980b9}
+\definecolor{AglayaOrange}{HTML}{e67e22}
+\definecolor{MichelRed}{HTML}{e74c3c}
+\definecolor{SharedBlue}{HTML}{2980b9}
+
 % Hyperlink setup
 \hypersetup{
     colorlinks=true,
@@ -199,35 +207,26 @@
 \section{Working Plan}
 \subsection{Gantt Diagram}
 
-The project timeline spans from September 10, 2025, to October 21, 2025, with a total duration of 42 days. The following table presents the detailed task schedule:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Imatges/Gantt.png}
+    \caption{Gantt Diagram for Tasks}
+    \label{fig:gantt}
+\end{figure}
 
+% Legend
 \begin{table}[H]
 \centering
-\footnotesize
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{|p{0.8cm}|p{4.5cm}|p{2.5cm}|p{1.8cm}|p{1.8cm}|p{1.2cm}|}
-\hline
-\rowcolor{lightgray}
-\textbf{\textcolor{primaryblue}{Task}} & \textbf{\textcolor{primaryblue}{Description}} & \textbf{\textcolor{primaryblue}{Assigned}} & \textbf{\textcolor{primaryblue}{Start}} & \textbf{\textcolor{primaryblue}{End}} & \textbf{\textcolor{primaryblue}{Days}} \\
-\hline
-T1-T4 & Cover, Index, Motivation, Data Source & All members & 10/09/25 & 10/09/25 & 1 \\
-\hline
-T5-T7 & Data structure, metadata, DM process, Preprocessing & \textbf{Jesus} & 10/09/25 & 24/09/25 & 14 \\
-\hline
-T8 & Statistical descriptive analysis & \textbf{Arnau} & 17/09/25 & 01/10/25 & 14 \\
-\hline
-T9 & PCA analysis for numerical variables & \textbf{Marc} & 01/10/25 & 08/10/25 & 7 \\
-\hline
-T10 & Hierarchical Clustering analysis & \textbf{Aglaya} & 08/10/25 & 15/10/25 & 7 \\
-\hline
-T11 & Cluster Profiling and interpretation & \textbf{Michel} & 15/10/25 & 21/10/25 & 6 \\
-\hline
-T12-T14 & Conclusions, Working plan, R Scripts & All members & 24/09/25 & 21/10/25 & 27 \\
-\hline
+\begin{tabular}{cl}
+\colorbox{JesusGreen}{\phantom{XX}} & Jesus Garcia Ayala - Data preparation \\[0.2cm]
+\colorbox{ArnauPurple}{\phantom{XX}} & Arnau Hernández Navarro - Statistical analysis \\[0.2cm]
+\colorbox{MarcBlue}{\phantom{XX}} & Marc Font I Cabarrocas - PCA analysis \& \textbf{Project Coordinator} \\[0.2cm]
+\colorbox{AglayaOrange}{\phantom{XX}} & Aglaya Khalipskaya Soboleva - Hierarchical clustering \\[0.2cm]
+\colorbox{MichelRed}{\phantom{XX}} & Alex Michel Mediavilla Jiménez - Cluster profiling \\[0.2cm]
+\colorbox{SharedBlue}{\phantom{XX}} & All team members - Shared responsibilities \\
 \end{tabular}
-\caption{\textcolor{primaryblue}{Project Task Schedule and Assignments}}
-\label{tab:gantt}
 \end{table}
+
 
 \textbf{\textcolor{secondaryblue}{Task Dependencies:}}
 \begin{itemize}[leftmargin=*]
