@@ -1,0 +1,560 @@
+---
+title: "Principal Component Analysis — iFood Dataset"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+  pdf_document:
+    toc: true
+    number_sections: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# PCA Analysis Setup
+
+**Note:** This script expects preprocessed data (cleaned, with outliers handled, transformations applied).  
+Place your preprocessed CSV in the same folder as this `.Rmd` or update `data_path` below.
+
+```{r setup, message=FALSE, warning=FALSE}
+# Required packages
+required_pkgs <- c("readr", "dplyr", "FactoMineR", "factoextra", "ggplot2", 
+                   "gridExtra", "knitr", "corrplot")
+to_install <- setdiff(required_pkgs, rownames(installed.packages()))
+if (length(to_install)) {
+  install.packages(to_install, repos = "https://cloud.r-project.org")
+}
+
+library(readr)
+library(dplyr)
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(corrplot)
+
+# Safe path handling for Windows
+safe_path <- function(p) {
+  ifelse(is.na(p) || !nzchar(p), p, gsub("\\\\", "/", p))
+}
+
+# Set landscape figure options for visibility
+knitr::opts_chunk$set(
+  fig.width = 12,
+  fig.height = 8,
+  out.width = "100%",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Load Preprocessed Data
+
+```{r load-data}
+# UPDATE THIS PATH to your preprocessed data file
+data_path <- "ifood_preprocessed.csv"  # or "ifood_base_clean.csv", etc.
+data_path <- safe_path(data_path)
+
+if (!file.exists(data_path)) {
+  stop(paste0("Preprocessed CSV not found at: '", data_path, "'. ",
+              "Please provide the correct path to your preprocessed data."))
+}
+
+dd <- readr::read_csv(data_path, show_col_types = FALSE)
+
+cat("Dataset dimensions:", nrow(dd), "rows ×", ncol(dd), "columns\n")
+cat("\nVariable names:\n")
+print(names(dd))
+```
+
+## Prepare Data for PCA
+
+```{r prepare-pca-data}
+# Identify numeric variables (exclude ID columns and constants)
+exclude_cols <- c("Id", "ID", "id", "Z_CostContact", "Z_Revenue")
+exclude_cols <- intersect(exclude_cols, names(dd))
+
+# Identify qualitative variables (for supplementary analysis)
+quali_vars <- names(dd)[sapply(dd, function(x) is.factor(x) | is.character(x))]
+quali_vars <- setdiff(quali_vars, exclude_cols)
+
+# Identify numeric variables
+numeric_vars <- names(dd)[sapply(dd, is.numeric)]
+numeric_vars <- setdiff(numeric_vars, exclude_cols)
+
+cat("\nQualitative variables identified:\n")
+print(quali_vars)
+
+cat("\nNumeric variables for PCA:\n")
+print(numeric_vars)
+
+# Create dataset for PCA: numeric variables only, complete cases
+if (length(numeric_vars) == 0) {
+  stop("No numeric variables found for PCA analysis.")
+}
+
+# Prepare data with numeric and qualitative columns
+pca_data <- dd %>%
+  select(all_of(c(numeric_vars, quali_vars))) %>%
+  na.omit()
+
+cat("\nFinal PCA dataset:", nrow(pca_data), "observations ×", 
+    length(numeric_vars), "numeric variables\n")
+cat("Complete cases retained:", 
+    round(100 * nrow(pca_data) / nrow(dd), 2), "%\n")
+```
+
+# PCA Execution
+
+```{r run-pca}
+# Identify column indices
+quanti_indices <- which(names(pca_data) %in% numeric_vars)
+quali_indices <- which(names(pca_data) %in% quali_vars)
+
+# Run PCA with qualitative variables as supplementary
+if (length(quali_indices) > 0) {
+  pca_result <- PCA(
+    pca_data,
+    quanti.sup = NULL,
+    quali.sup = quali_indices,
+    graph = FALSE,
+    scale.unit = TRUE
+  )
+} else {
+  pca_result <- PCA(
+    pca_data[, numeric_vars],
+    graph = FALSE,
+    scale.unit = TRUE
+  )
+}
+
+cat("\nPCA completed successfully.\n")
+```
+
+# Scree Plot and Component Selection
+
+The scree plot shows the percentage of variance explained by each principal component.
+
+```{r scree-plot, fig.width=12, fig.height=6}
+# Scree plot with eigenvalues
+fviz_eig(pca_result, 
+         addlabels = TRUE,
+         ylim = c(0, 50),
+         main = "Scree Plot: Variance Explained by Principal Components",
+         barfill = "steelblue",
+         barcolor = "steelblue",
+         linecolor = "red")
+
+# Get eigenvalues
+eigenvalues <- get_eigenvalue(pca_result)
+kable(eigenvalues, 
+      caption = "Eigenvalues and Variance Explained",
+      digits = 3)
+
+# Determine number of components to retain
+# Using Kaiser criterion (eigenvalue > 1) and cumulative variance (>= 70%)
+n_components_kaiser <- sum(eigenvalues$eigenvalue > 1)
+n_components_70pct <- which(eigenvalues$cumulative.variance.percent >= 70)[1]
+
+cat("\n## Component Selection Criteria:\n")
+cat("- Kaiser criterion (eigenvalue > 1):", n_components_kaiser, "components\n")
+cat("- Cumulative variance ≥ 70%:", n_components_70pct, "components\n")
+cat("\n**Selected number of components:**", 
+    max(n_components_kaiser, n_components_70pct, na.rm = TRUE), "\n")
+```
+
+**Interpretation:**  
+Based on the scree plot and eigenvalue table:
+
+- Components with eigenvalues > 1 are considered significant (Kaiser criterion)
+- The elbow in the scree plot suggests where to cut off
+- We aim for cumulative variance ≥ 70% for adequate representation
+
+# Factorial Maps
+
+## Individuals Projection (Dim 1 vs Dim 2) {.landscape}
+
+Individual projections show how observations are distributed across the principal components.
+
+```{r individuals-map-12, fig.width=14, fig.height=10}
+fviz_pca_ind(
+  pca_result,
+  axes = c(1, 2),
+  col.ind = "contrib",
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+  repel = FALSE,
+  pointsize = 2,
+  alpha.ind = 0.6,
+  title = "PCA - Individuals Projection (PC1 vs PC2)",
+  legend.title = "Contribution"
+)
+```
+
+**Interpretation:**  
+- Points represent individual observations in the reduced dimensional space
+- Color intensity indicates contribution to the principal components
+- Clusters suggest groups of similar individuals
+- Distance from origin indicates how well-represented individuals are
+
+\newpage
+
+## Variables Projection (Dim 1 vs Dim 2) {.landscape}
+
+```{r variables-map-12, fig.width=14, fig.height=10}
+fviz_pca_var(
+  pca_result,
+  axes = c(1, 2),
+  col.var = "contrib",
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+  repel = TRUE,
+  labelsize = 4,
+  title = "PCA - Variables Projection (PC1 vs PC2)",
+  legend.title = "Contribution"
+)
+```
+
+**Interpretation:**  
+- Arrows represent original numeric variables
+- Arrow length indicates how well the variable is represented
+- Arrow direction shows correlation with principal components
+- Angles between arrows indicate correlations between variables:
+  - Small angle (< 90°): positive correlation
+  - Right angle (90°): no correlation  
+  - Obtuse angle (> 90°): negative correlation
+
+\newpage
+
+## Biplot: Individuals + Variables (Dim 1 vs Dim 2) {.landscape}
+
+```{r biplot-12, fig.width=14, fig.height=10}
+fviz_pca_biplot(
+  pca_result,
+  axes = c(1, 2),
+  # Individuals
+  geom.ind = "point",
+  col.ind = "gray70",
+  pointsize = 1.5,
+  alpha.ind = 0.4,
+  # Variables
+  col.var = "contrib",
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+  repel = TRUE,
+  labelsize = 4,
+  title = "PCA Biplot: Individuals and Variables (PC1 vs PC2)",
+  legend.title = "Variable\nContribution"
+)
+```
+
+**Interpretation:**  
+- Combines individual points (gray) with variable arrows (colored)
+- Shows relationship between observations and original variables
+- Individuals positioned in the direction of variables have high values for those variables
+
+\newpage
+
+## Qualitative Variables Projection (Dim 1 vs Dim 2) {.landscape}
+
+```{r quali-vars-map-12, fig.width=14, fig.height=10}
+if (length(quali_indices) > 0) {
+  # Plot supplementary qualitative variables
+  plot.PCA(
+    pca_result,
+    axes = c(1, 2),
+    choix = "var",
+    habillage = "none",
+    col.quali = "blue",
+    title = "PCA - Qualitative Variable Categories (PC1 vs PC2)",
+    cex = 1.2
+  )
+  
+  cat("\n**Interpretation:**\n")
+  cat("- Blue points represent categories of qualitative variables\n")
+  cat("- Position indicates typical values of PCs for that category\n")
+  cat("- Distance from origin shows category's distinctiveness\n")
+} else {
+  cat("No qualitative variables available for supplementary analysis.\n")
+}
+```
+
+\newpage
+
+## Combined Projection: Variables + Qualitative Categories (Dim 1 vs Dim 2) {.landscape}
+
+```{r combined-map-12, fig.width=14, fig.height=10}
+if (length(quali_indices) > 0) {
+  fviz_pca_biplot(
+    pca_result,
+    axes = c(1, 2),
+    # Hide individuals for clarity
+    geom.ind = "point",
+    col.ind = "gray90",
+    pointsize = 0.5,
+    alpha.ind = 0.2,
+    invisible = "ind",
+    # Show variables
+    col.var = "red",
+    repel = TRUE,
+    labelsize = 4,
+    # Show qualitative categories
+    habillage = names(pca_data)[quali_indices[1]],
+    palette = "Dark2",
+    addEllipses = TRUE,
+    ellipse.level = 0.68,
+    title = paste0("Combined Projection: Variables + ", 
+                   names(pca_data)[quali_indices[1]], " (PC1 vs PC2)"),
+    legend.title = "Category"
+  )
+  
+  cat("\n**Color Coding:**\n")
+  cat("- RED arrows: Numeric variables (original features)\n")
+  cat("- COLORED points/ellipses: Categories of qualitative variable\n")
+  cat("- Ellipses show 68% confidence regions for each category\n")
+} else {
+  cat("No qualitative variables available for combined visualization.\n")
+}
+```
+
+\newpage
+
+## Individuals Projection (Dim 2 vs Dim 3) {.landscape}
+
+```{r individuals-map-23, fig.width=14, fig.height=10}
+if (ncol(pca_result$var$coord) >= 3) {
+  fviz_pca_ind(
+    pca_result,
+    axes = c(2, 3),
+    col.ind = "contrib",
+    gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+    repel = FALSE,
+    pointsize = 2,
+    alpha.ind = 0.6,
+    title = "PCA - Individuals Projection (PC2 vs PC3)",
+    legend.title = "Contribution"
+  )
+} else {
+  cat("Fewer than 3 components available. Skipping PC2 vs PC3 plot.\n")
+}
+```
+
+\newpage
+
+## Variables Projection (Dim 2 vs Dim 3) {.landscape}
+
+```{r variables-map-23, fig.width=14, fig.height=10}
+if (ncol(pca_result$var$coord) >= 3) {
+  fviz_pca_var(
+    pca_result,
+    axes = c(2, 3),
+    col.var = "contrib",
+    gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+    repel = TRUE,
+    labelsize = 4,
+    title = "PCA - Variables Projection (PC2 vs PC3)",
+    legend.title = "Contribution"
+  )
+}
+```
+
+\newpage
+
+## Biplot (Dim 2 vs Dim 3) {.landscape}
+
+```{r biplot-23, fig.width=14, fig.height=10}
+if (ncol(pca_result$var$coord) >= 3) {
+  fviz_pca_biplot(
+    pca_result,
+    axes = c(2, 3),
+    geom.ind = "point",
+    col.ind = "gray70",
+    pointsize = 1.5,
+    alpha.ind = 0.4,
+    col.var = "contrib",
+    gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+    repel = TRUE,
+    labelsize = 4,
+    title = "PCA Biplot: Individuals and Variables (PC2 vs PC3)",
+    legend.title = "Variable\nContribution"
+  )
+}
+```
+
+# Variable Contributions and Quality of Representation
+
+## Variable Contributions to PC1 and PC2
+
+```{r var-contributions, fig.width=12, fig.height=6}
+# Contributions to Dim 1
+p1 <- fviz_contrib(pca_result, choice = "var", axes = 1, top = 15,
+                   fill = "steelblue", color = "steelblue",
+                   title = "Contributions to PC1")
+
+# Contributions to Dim 2
+p2 <- fviz_contrib(pca_result, choice = "var", axes = 2, top = 15,
+                   fill = "darkgreen", color = "darkgreen",
+                   title = "Contributions to PC2")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+**Interpretation:**  
+- Variables above the red dashed line (expected average) contribute significantly
+- Higher bars indicate stronger influence on that principal component
+
+## Quality of Representation (Cos2)
+
+```{r var-quality, fig.width=14, fig.height=8}
+fviz_pca_var(
+  pca_result,
+  axes = c(1, 2),
+  col.var = "cos2",
+  gradient.cols = c("#BB4444", "#EE9944", "#44BB44"),
+  repel = TRUE,
+  labelsize = 4,
+  title = "Variable Quality of Representation (Cos2) on PC1-PC2",
+  legend.title = "Cos2"
+)
+
+# Table of cos2 values
+var_cos2 <- as.data.frame(pca_result$var$cos2)
+var_cos2$Variable <- rownames(var_cos2)
+var_cos2 <- var_cos2[order(-var_cos2$Dim.1), ]
+kable(head(var_cos2, 15), 
+      caption = "Quality of Representation (Cos2) - Top Variables",
+      digits = 3,
+      row.names = FALSE)
+```
+
+**Interpretation:**  
+- Cos2 measures how well variables are represented on the factorial plane
+- Values close to 1 indicate excellent representation
+- Values close to 0 indicate poor representation on these dimensions
+
+# Interpretation of Principal Components
+
+## Component 1 (PC1): Latent Variable Interpretation
+
+```{r interpret-pc1}
+# Get variable contributions and coordinates for PC1
+pc1_contrib <- pca_result$var$contrib[, 1]
+pc1_coord <- pca_result$var$coord[, 1]
+
+pc1_df <- data.frame(
+  Variable = names(pc1_coord),
+  Coordinate = pc1_coord,
+  Contribution = pc1_contrib
+) %>%
+  arrange(desc(abs(Coordinate)))
+
+kable(pc1_df, 
+      caption = "PC1: Variable Loadings and Contributions",
+      digits = 3,
+      row.names = FALSE)
+
+cat("\n**PC1 Interpretation:**\n")
+cat("Based on the variables with highest absolute loadings:\n")
+cat("- Positive loadings: [Variables with positive correlation]\n")
+cat("- Negative loadings: [Variables with negative correlation]\n")
+cat("\nPC1 likely represents: [Describe the latent construct - e.g., 'Customer engagement level', 'Purchasing power', etc.]\n")
+```
+
+## Component 2 (PC2): Latent Variable Interpretation
+
+```{r interpret-pc2}
+# Get variable contributions and coordinates for PC2
+pc2_contrib <- pca_result$var$contrib[, 2]
+pc2_coord <- pca_result$var$coord[, 2]
+
+pc2_df <- data.frame(
+  Variable = names(pc2_coord),
+  Coordinate = pc2_coord,
+  Contribution = pc2_contrib
+) %>%
+  arrange(desc(abs(Coordinate)))
+
+kable(pc2_df, 
+      caption = "PC2: Variable Loadings and Contributions",
+      digits = 3,
+      row.names = FALSE)
+
+cat("\n**PC2 Interpretation:**\n")
+cat("Based on the variables with highest absolute loadings:\n")
+cat("- Positive loadings: [Variables with positive correlation]\n")
+cat("- Negative loadings: [Variables with negative correlation]\n")
+cat("\nPC2 likely represents: [Describe the latent construct - e.g., 'Product preference diversity', 'Demographic factors', etc.]\n")
+```
+
+## Correlation Matrix of Original Variables
+
+```{r correlation-matrix, fig.width=12, fig.height=10}
+# Compute correlation matrix
+cor_matrix <- cor(pca_data[, numeric_vars], use = "complete.obs")
+
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         tl.col = "black",
+         tl.srt = 45,
+         tl.cex = 0.8,
+         addCoef.col = "black",
+         number.cex = 0.6,
+         col = colorRampPalette(c("#BB4444", "white", "#4444BB"))(200),
+         title = "Correlation Matrix of Numeric Variables",
+         mar = c(0, 0, 2, 0))
+```
+
+**Interpretation:**  
+- Strong positive correlations (dark blue) suggest variables measuring similar constructs
+- Strong negative correlations (dark red) suggest opposite relationships
+- These patterns help explain the principal component structure
+
+# Summary and Conclusions
+
+## Key Findings
+
+```{r summary-findings}
+cat("## PCA Summary:\n\n")
+cat("1. **Number of components retained:**", 
+    max(n_components_kaiser, n_components_70pct, na.rm = TRUE), "\n")
+cat("   - Total variance explained:", 
+    round(eigenvalues$cumulative.variance.percent[
+      max(n_components_kaiser, n_components_70pct, na.rm = TRUE)], 2), "%\n\n")
+
+cat("2. **PC1 captures:**", 
+    round(eigenvalues$variance.percent[1], 2), "% of variance\n")
+cat("   - Main contributing variables:", 
+    paste(head(pc1_df$Variable, 3), collapse = ", "), "\n\n")
+
+cat("3. **PC2 captures:**", 
+    round(eigenvalues$variance.percent[2], 2), "% of variance\n")
+cat("   - Main contributing variables:", 
+    paste(head(pc2_df$Variable, 3), collapse = ", "), "\n\n")
+
+cat("4. **Observed relationships:**\n")
+cat("   - Review factorial maps to identify variable clusters\n")
+cat("   - Check biplot for individual-variable relationships\n")
+cat("   - Examine qualitative variable projections for group differences\n")
+```
+
+## Practical Implications
+
+The PCA analysis provides:
+
+1. **Dimensionality reduction**: Original dataset reduced to fewer meaningful components
+2. **Variable relationships**: Correlation patterns visualized through factorial maps
+3. **Latent constructs**: Principal components can be interpreted as underlying factors
+4. **Data structure**: Individual projections reveal patterns and potential segments
+
+## Next Steps
+
+Consider the following analyses:
+
+- **Clustering**: Use PC scores for customer segmentation
+- **Predictive modeling**: Use principal components as features
+- **Anomaly detection**: Identify outliers in the factorial space
+- **Further interpretation**: Link PCs to business outcomes
+
+---
+
+*End of PCA Analysis Report*
