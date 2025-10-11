@@ -1,0 +1,106 @@
+# Load and attach cleaned data
+
+dd <- read.csv("ifood_enriched.csv", sep=",", stringsAsFactors = TRUE)
+attach(dd)
+
+# Select numeric variables for clustering
+
+dcon <- data.frame(
+Income, Kidhome, Teenhome, Recency, WineExp, FruitExp, MeatExp, FishExp,
+SweetExp, GoldExp, DealsPurc, WebPurc, CatalogPurc, StorePurc, WebVisits,
+Age, CustDays, TotAccCmp, TotalExp, TotalPurchases, PurchaseFrequency,
+AvgSpendPerPurchase, HasChildren, CustomerTenure, CampaignAcceptanceRate,
+PropensityScore, EngagementIndex
+)
+
+# Check dimensions
+
+dim(dcon)
+summary(dcon)
+
+# =========================
+
+# K-MEANS CLUSTERING
+
+# =========================
+
+set.seed(123)
+k5 <- kmeans(dcon, 5)
+k5$size
+k5$centers
+
+# Compute inertia decomposition
+
+Bss <- sum(rowSums(k5$centers^2) * k5$size)
+Wss <- sum(k5$withinss)
+Ib <- 100 * Bss / (Bss + Wss)
+Ib
+
+# Visualize clusters (pair of key variables)
+
+plot(dcon$WineExp, dcon$TotalExp, col=k5$cluster,
+main="K-Means Clustering (k=5)",
+xlab="WineExpenditure", ylab="TotalExpenditure")
+legend("topright", legend=paste("Cluster", 1:5), col=1:5, pch=1)
+
+pairs(dcon[, c("WineExp", "MeatExp", "FishExp", "TotalExp", "Age", "Income")],
+col=k5$cluster, main="Pairwise plots for selected vars")
+
+# =========================
+
+# HIERARCHICAL CLUSTERING
+
+# =========================
+
+d <- dist(scale(dcon))   # scaled Euclidean distance
+h1 <- hclust(d, method="ward.D2")
+plot(h1, labels=FALSE, main="Hierarchical Clustering - Ward.D2")
+
+# Cut the dendrogram
+
+nc <- 4
+c4 <- cutree(h1, nc)
+table(c4)
+
+# Cluster means (centroids)
+
+cdg <- aggregate(dcon, list(c4), mean)
+cdg
+
+# Visualize key relationships
+
+plot(dcon$WineExp, dcon$TotalExp, col=c4,
+main="Hierarchical Clustering (4 clusters)",
+xlab="WineExpenditure", ylab="TotalExpenditure")
+legend("topright", paste("Cluster", 1:4), col=1:4, pch=1)
+
+# =========================
+
+# GOWER DISTANCE (mixed data)
+
+# =========================
+
+library(cluster)
+
+actives <- c("Education", "MaritalSts", "Income", "Kidhome", "Teenhome",
+"Recency", "WineExp", "FruitExp", "MeatExp", "FishExp", "SweetExp",
+"GoldExp", "DealsPurc", "WebPurc", "CatalogPurc", "StorePurc",
+"Age", "HasChildren", "IncomeSegment", "CustomerSegment")
+
+dissimMatrix <- daisy(dd[, actives], metric="gower", stand=TRUE)
+h2 <- hclust(dissimMatrix, method="ward.D2")
+plot(h2, labels=FALSE, main="Hierarchical Clustering with Gower Distance")
+
+cG <- cutree(h2, 4)
+table(cG)
+
+# Profiling (example: Income and TotalExp)
+
+boxplot(Income ~ cG, data=dd, horizontal=TRUE, main="Income by Cluster (Gower)")
+boxplot(TotalExp ~ cG, data=dd, horizontal=TRUE, main="TotalExp by Cluster (Gower)")
+
+pairs(dcon[, c("WineExp", "MeatExp", "FishExp", "TotalExp", "Age", "Income")],
+col=cG, main="Cluster Profiling (Gower)")
+
+
+
