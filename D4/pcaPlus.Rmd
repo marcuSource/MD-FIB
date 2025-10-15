@@ -62,7 +62,7 @@ cat("Cumulative variance explained:", round(cumulative_variance[nd], 2), "%\n")
 nd_kaiser <- sum(eigenvalues > 1)
 cat("Components by Kaiser criterion (eigenvalue>1):", nd_kaiser, "\n")
 
-# Create high-quality scree plots
+# Scree plots
 # First display on screen
 par(mfrow=c(1,2), mar=c(5,5,4,2))
 
@@ -97,7 +97,7 @@ legend("bottomright",
        legend=c("80% threshold", paste("Selected:", nd, "components")),
        col="red", lty=2, lwd=2, bty="n")
 
-# Also save to PDF
+# Save to PDF
 pdf("PCA_ScreePlot.pdf", width=12, height=6)
 par(mfrow=c(1,2), mar=c(5,5,4,2))
 
@@ -151,7 +151,7 @@ contrib_vars <- (Phi^2 / matrix(rep(eigenvalues[1:nd], each=nrow(Phi)), nrow=nro
 # Labels - original names
 etiq <- names(dcon)
 
-# Create shortened, readable names for better visualization
+# Shorten variables
 etiq_short <- etiq  # Default
 
 # Map long variable names to shorter versions
@@ -218,7 +218,7 @@ eje2 <- 2
 X <- Phi[, eje1]
 Y <- Phi[, eje2]
 
-# Display on screen first
+# Display on screen
 layout(matrix(c(1,1,2,3), 2, 2, byrow=TRUE), heights=c(3,1))
 par(mar=c(5,5,4,2))
 
@@ -319,7 +319,7 @@ if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
          cex=0.9)
 }
 
-# Now save to PDF
+# Save to PDF
 pdf("PCA_FactorialMap_PC1_PC2.pdf", width=12, height=10)
 layout(matrix(c(1,1,2,3), 2, 2, byrow=TRUE), heights=c(3,1))
 
