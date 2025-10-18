@@ -1,907 +1,485 @@
-################################################################################
-# PRINCIPAL COMPONENT ANALYSIS (PCA)
-################################################################################
+---
+title: "Complete PCA Analysis (Multiple Axes)"
+author: "Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
 
-# Load required libraries
-library(FactoMineR)  # Optional: for additional PCA features
-library(factoextra)  # Optional: for enhanced visualizations
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width=10, fig.height=7) 
+# Default fig height/width, will adjust for square plots
+```
 
-# Clear environment
-rm(list=ls())
+### 1. Load, Prepare, and Run PCA
 
-################################################################################
-# 1. DATA LOADING AND PREPARATION
-################################################################################
+This single chunk loads the data and runs the `prcomp` function to create **all** the objects we need for all plots.
 
-# Load preprocessed data
-dd <- read.table("ifood_enriched.csv", header=TRUE, sep=",")
+```{r load-and-run-pca}
+# 1. Load data
+dd <- read.csv("ifood_enriched.csv", header=T, sep=",")
 
-# Identify numerical variables
-numeriques <- which(sapply(dd, is.numeric))
-dcon <- dd[, numeriques]
-
-cat("\n=== DATA LOADED ===\n")
-cat("Total observations:", nrow(dd), "\n")
-cat("Numerical variables:", ncol(dcon), "\n")
-cat("Variables:", paste(names(dcon), collapse=", "), "\n")
-
-################################################################################
-# 2. PRINCIPAL COMPONENT ANALYSIS
-################################################################################
-
-# Perform PCA with scaling
-pc1 <- prcomp(dcon, scale=TRUE)
-
-# Calculate variance metrics
-eigenvalues <- pc1$sdev^2
-variance_explained <- 100 * eigenvalues / sum(eigenvalues)
-cumulative_variance <- cumsum(variance_explained)
-
-# Display variance table
-variance_table <- data.frame(
-  PC = 1:length(eigenvalues),
-  Eigenvalue = round(eigenvalues, 3),
-  Variance_Pct = round(variance_explained, 2),
-  Cumulative_Pct = round(cumulative_variance, 2)
+# 2. Define our variable lists
+active_num_vars <- c(
+    'Income', 'Age', 'Recency', 'CustDays', 'WineExp', 'FruitExp', 'MeatExp', 
+    'FishExp', 'SweetExp', 'GoldExp', 'DealsPurc', 'WebPurc', 'CatalogPurc', 'StorePurc'
 )
 
-cat("\n=== VARIANCE EXPLAINED BY PRINCIPAL COMPONENTS ===\n")
-print(variance_table[1:min(10, nrow(variance_table)),])
-
-################################################################################
-# 3. COMPONENT SELECTION (Requirement a: Scree plot and selection)
-################################################################################
-
-# Determine number of components (80% criterion)
-nd <- which(cumulative_variance >= 80)[1]
-cat("\n=== COMPONENT SELECTION ===\n")
-cat("Components selected (80% criterion):", nd, "\n")
-cat("Cumulative variance explained:", round(cumulative_variance[nd], 2), "%\n")
-
-# Alternative: Kaiser criterion (eigenvalue > 1)
-nd_kaiser <- sum(eigenvalues > 1)
-cat("Components by Kaiser criterion (eigenvalue>1):", nd_kaiser, "\n")
-
-# Scree plots
-# First display on screen
-par(mfrow=c(1,2), mar=c(5,5,4,2))
-
-# Individual variance per component
-barplot(variance_explained, 
-        names.arg=1:length(variance_explained),
-        main="Scree Plot: Variance Explained by Each PC",
-        xlab="Principal Component",
-        ylab="Percentage of Variance Explained (%)",
-        col="steelblue",
-        border="white",
-        las=1,
-        ylim=c(0, max(variance_explained)*1.1))
-abline(h=100/ncol(dcon), col="red", lty=2, lwd=2)
-legend("topright", legend="Average variance (Kaiser criterion)", 
-       col="red", lty=2, lwd=2, bty="n")
-
-# Cumulative variance
-plot(1:length(cumulative_variance), cumulative_variance,
-     type="b",
-     pch=19,
-     col="darkblue",
-     main="Cumulative Variance Explained",
-     xlab="Number of Principal Components",
-     ylab="Cumulative Percentage of Variance (%)",
-     las=1,
-     ylim=c(0,100))
-abline(h=80, col="red", lty=2, lwd=2)
-abline(v=nd, col="red", lty=2, lwd=2)
-grid(col="gray", lty="dotted")
-legend("bottomright", 
-       legend=c("80% threshold", paste("Selected:", nd, "components")),
-       col="red", lty=2, lwd=2, bty="n")
-
-# Save to PDF
-pdf("PCA_ScreePlot.pdf", width=12, height=6)
-par(mfrow=c(1,2), mar=c(5,5,4,2))
-
-barplot(variance_explained, 
-        names.arg=1:length(variance_explained),
-        main="Scree Plot: Variance Explained by Each PC",
-        xlab="Principal Component",
-        ylab="Percentage of Variance Explained (%)",
-        col="steelblue",
-        border="white",
-        las=1,
-        ylim=c(0, max(variance_explained)*1.1))
-abline(h=100/ncol(dcon), col="red", lty=2, lwd=2)
-legend("topright", legend="Average variance (Kaiser criterion)", 
-       col="red", lty=2, lwd=2, bty="n")
-
-plot(1:length(cumulative_variance), cumulative_variance,
-     type="b",
-     pch=19,
-     col="darkblue",
-     main="Cumulative Variance Explained",
-     xlab="Number of Principal Components",
-     ylab="Cumulative Percentage of Variance (%)",
-     las=1,
-     ylim=c(0,100))
-abline(h=80, col="red", lty=2, lwd=2)
-abline(v=nd, col="red", lty=2, lwd=2)
-grid(col="gray", lty="dotted")
-legend("bottomright", 
-       legend=c("80% threshold", paste("Selected:", nd, "components")),
-       col="red", lty=2, lwd=2, bty="n")
-
-dev.off()
-
-cat("\n✓ Scree plot displayed and saved as 'PCA_ScreePlot.pdf'\n")
-
-################################################################################
-# 4. PREPARE DATA FOR FACTORIAL MAPS
-################################################################################
-
-# Store projections (scores) for selected components
-Psi <- pc1$x[, 1:nd]
-
-# Calculate correlations (loadings) between variables and PCs
-Phi <- cor(dcon, Psi)
-
-# Calculate quality of representation (cos2) and contributions
-cos2_vars <- Phi^2
-contrib_vars <- (Phi^2 / matrix(rep(eigenvalues[1:nd], each=nrow(Phi)), nrow=nrow(Phi))) * 100
-
-# Labels - original names
-etiq <- names(dcon)
-
-# Shorten variables
-etiq_short <- etiq  # Default
-
-# Map long variable names to shorter versions
-name_mapping <- c(
-  "Income" = "Income",
-  "Kidhome" = "Kids",
-  "Teenhome" = "Teens",
-  "Recency" = "Recency",
-  "WineExp" = "Wine",
-  "FruitExp" = "Fruit",
-  "MeatExp" = "Meat",
-  "FishExp" = "Fish",
-  "SweetExp" = "Sweet",
-  "GoldExp" = "Gold",
-  "DealsPurc" = "Deals",
-  "WebPurc" = "WebPur",
-  "CatalogPurc" = "CatalogPur",
-  "StorePurc" = "StorePur",
-  "WebVisits" = "WebVisits",
-  "AccCmp3" = "Cmp3",
-  "AccCmp4" = "Cmp4",
-  "AccCmp5" = "Cmp5",
-  "AccCmp1" = "Cmp1",
-  "AccCmp2" = "Cmp2",
-  "Complain" = "Complain",
-  "Response" = "Response",
-  "Age" = "Age",
-  "CustDays" = "CustDays",
-  "TotAccCmp" = "TotCmp",
-  "TotalExp" = "TotExp",
-  "TotalPurchases" = "TotPur",
-  "PurchaseFrequency" = "PurFreq",
-  "AvgSpendPerPurchase" = "AvgSpend",
-  "HasChildren" = "HasChild",
-  "CustomerTenure" = "Tenure",
-  "CampaignAcceptanceRate" = "CmpAccRate",
-  "CustomerSegment" = "Segment",
-  "PropensityScore" = "Propensity",
-  "EngagementIndex" = "Engagement"
+illu_quali_vars <- c(
+    'Education', 'MaritalSts', 'Kidhome', 'Teenhome', 'CustomerSegment', 
+    'IncomeSegment', 'PreferredProductCategory', 'PreferredChannel', 'HasChildren'
 )
 
-# Apply mapping
-for(i in 1:length(etiq)) {
-  if(etiq[i] %in% names(name_mapping)) {
-    etiq_short[i] <- name_mapping[etiq[i]]
-  }
+# 3. Handle missing data
+dd <- dd[complete.cases(dd[, active_num_vars]), ]
+
+# 4. Create the data frame of ACTIVE continuous variables
+dcon <- dd[, active_num_vars]
+
+# 5. Convert illustrative variables to factors
+for (col in illu_quali_vars) {
+  dd[[col]] <- as.factor(dd[[col]])
 }
 
-# Print mapping for reference
-cat("\n=== Variable Name Mapping ===\n")
-mapping_df <- data.frame(Original = etiq, Shortened = etiq_short)
-print(mapping_df)
+# 6. Run PCA
+acp <- prcomp(dcon, scale = TRUE)
 
-ze <- rep(0, length(etiq))
+# 7. Get all PCA objects
+valprop <- acp$sdev^2            # Eigenvalues (Inertia)
+percent_inertia <- (valprop / sum(valprop)) * 100
+cumulative_inertia <- cumsum(percent_inertia)
+Psi <- acp$x                     # Principal Components (Individuals)
+rot <- acp$rotation               # Loadings (Variables)
 
-################################################################################
-# 5. FACTORIAL MAP 1: PC1 vs PC2 - MAIN MAP
-# (Requirement b: Factorial map with individuals, variables, and categories)
-################################################################################
+# 8. Create Eigenvalue table
+eig_table <- data.frame(
+  Eigenvalue = valprop,
+  "Represented_Inertia_%" = percent_inertia,
+  "Cummulated_Inertia_%" = cumulative_inertia
+)
+print("Inertia Table:")
+print(head(eig_table))
 
+# Define colors for qualitative plots (consistent across maps)
+qual_colors <- rainbow(length(illu_quali_vars))
+```
+
+---
+
+### 2. Inertia Plots
+
+These are the two inertia plots.
+
+#### a. Subspace Represented Inertia
+
+**Output: `represented_inertia_plot.pdf`**
+
+```{r plot-represented-inertia}
+# --- 1. Start PDF Output ---
+pdf("represented_inertia_plot.pdf", width = 10, height = 7)
+
+# --- 2. Set margins ---
+par(mar=c(5, 4.5, 4, 1)) 
+
+# --- 3. Create the Plot ---
+bp <- barplot(percent_inertia,
+        main="Subspace Represented Inertia (% Variance)",
+        xlab="Principal Component",
+        ylab="% of Inertia Explained",
+        names.arg=NULL, 
+        ylim=c(0, max(percent_inertia) * 1.1), 
+        col="skyblue", 
+        border=NA,
+        xaxt="n" 
+        )
+
+# --- 4. Add details ---
+grid(ny=NULL, nx=NA, col="grey", lty="dotted")
+barplot(percent_inertia, add=TRUE, col="skyblue", border=NA, xaxt="n")
+text(x=bp, y=percent_inertia + max(percent_inertia)*0.02, 
+     labels=sprintf("%.1f", percent_inertia), 
+     cex=0.8)
+axis(1, at=bp, labels=paste0("PC", 1:length(percent_inertia)), 
+     las=2, cex.axis=0.9)
+box()
+
+# --- 5. Close the PDF file ---
+dev.off()
+```
+
+#### b. Subspace Cummulated Represented Inertia
+
+**Output: `cummulated_inertia_plot.pdf`**
+
+```{r plot-cummulated-inertia}
+# --- 1. Start PDF Output ---
+pdf("cummulated_inertia_plot.pdf", width = 10, height = 7)
+
+# --- 2. Set margins ---
+par(mar=c(5, 4.5, 4, 2)) 
+
+# --- 3. Create the Plot ---
+bp <- barplot(cumulative_inertia,
+        main="Subspace Cummulated Represented Inertia",
+        xlab="Principal Component",
+        ylab="Cumulative % of Inertia Explained",
+        names.arg=NULL, 
+        ylim=c(0, 105), 
+        col="skyblue",
+        border=NA,
+        xaxt="n" 
+        )
+
+# --- 4. Add details ---
+grid(ny=NULL, nx=NA, col="grey", lty="dotted")
+barplot(cumulative_inertia, add=TRUE, col="skyblue", border=NA, xaxt="n")
+abline(h=80, col="red", lty=2, lwd=2)
+text(x=bp, y=cumulative_inertia + 3, 
+     labels=sprintf("%.1f", cumulative_inertia), 
+     cex=0.8)
+axis(1, at=bp, labels=paste0("PC", 1:length(cumulative_inertia)), 
+     las=2, cex.axis=0.9)
+legend("bottomright", 
+       legend="80% Cumulative Inertia", 
+       lty=2, col="red", lwd=2, bg="white", box.lty=0, cex=0.9, inset=c(0.02, 0.05)) 
+box()
+
+# --- 5. Close the PDF file ---
+dev.off()
+```
+
+---
+
+### 3. Factorial Map Visualisation (Axes 1-4)
+
+Here we plot the three maps (Individuals, Numerical, Qualitative) for each combination of the first four axes.
+
+#### Axes 1 vs 2
+
+```{r maps-1-2, fig.width=10, fig.height=8}
 eje1 <- 1
 eje2 <- 2
+axis_label = "1_2"
 
-X <- Phi[, eje1]
-Y <- Phi[, eje2]
-
-# Display on screen
-layout(matrix(c(1,1,2,3), 2, 2, byrow=TRUE), heights=c(3,1))
-par(mar=c(5,5,4,2))
-
-plot(Psi[,eje1], Psi[,eje2], 
-     type="p",
-     pch=20,
-     col=rgb(0.5, 0.5, 0.5, 0.3),
-     cex=0.5,
-     asp=1,
-     main=paste0("Factorial Map: PC", eje1, " (", round(variance_explained[eje1],1), 
-                 "%) vs PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     xlab=paste0("PC", eje1, " (", round(variance_explained[eje1],1), "%)"),
-     ylab=paste0("PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     las=1)
-
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="blue", 
-       lwd=2)
-
-# Smart text positioning to avoid overlap
-# Use a more intelligent positioning system
-text_offset <- 0.05  # Distance from arrow tip
-for(i in 1:length(etiq_short)) {
-  # Determine position based on quadrant
-  angle <- atan2(Y[i], X[i])
-  
-  # Adjust position: use 'pos' argument for cleaner placement
-  if(X[i] > 0 && Y[i] > 0) {
-    pos_val <- 4  # right
-  } else if(X[i] < 0 && Y[i] > 0) {
-    pos_val <- 2  # left
-  } else if(X[i] < 0 && Y[i] < 0) {
-    pos_val <- 2  # left
-  } else {
-    pos_val <- 4  # right
-  }
-  
-  text(X[i], Y[i], 
-       labels=etiq_short[i], 
-       col="darkblue", 
-       cex=0.7,  # Smaller text
-       font=2,
-       pos=pos_val,
-       offset=0.3)
-}
-
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lty=2)
-
-# PROJECT CATEGORICAL VARIABLES
-# Based on your database: Education, MaritalSts, PreferredProductCategory, PreferredChannel, IncomeSegment
-dcat <- c(1, 2, 31, 32, 35)  # Adjust based on which categoricals you want to show
-colors_cat <- c("red", "darkgreen", "orange", "purple", "brown")
-
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  for(i in 1:length(dcat)) {
-    k <- dcat[i]
-    if(is.factor(dd[,k]) || is.character(dd[,k])) {
-      varcat <- factor(dd[,k])
-      fdic1 <- tapply(Psi[,eje1], varcat, mean)
-      fdic2 <- tapply(Psi[,eje2], varcat, mean)
-      
-      points(fdic1, fdic2, 
-             pch=17, 
-             col=colors_cat[i], 
-             cex=1.5)
-      text(fdic1, fdic2, 
-           labels=levels(varcat), 
-           col=colors_cat[i], 
-           cex=0.7,
-           pos=3,
-           font=2)
-    }
-  }
-}
-
-par(mar=c(2,2,2,2))
-plot.new()
-legend("center", 
-       title="Numerical Variables",
-       legend=c("Arrow = correlation with PC", 
-                "Length = strength of correlation",
-                "Circle = unit correlation"),
-       bty="n",
-       cex=0.9)
-
-plot.new()
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  legend("center",
-         title="Categorical Variables (Centroids)",
-         legend=names(dd)[dcat],
-         pch=17,
-         col=colors_cat[1:length(dcat)],
-         bty="n",
-         cex=0.9)
-}
-
-# Save to PDF
-pdf("PCA_FactorialMap_PC1_PC2.pdf", width=12, height=10)
-layout(matrix(c(1,1,2,3), 2, 2, byrow=TRUE), heights=c(3,1))
-
-# MAIN PLOT
-par(mar=c(5,5,4,2))
-plot(Psi[,eje1], Psi[,eje2], 
-     type="p",
-     pch=20,
-     col=rgb(0.5, 0.5, 0.5, 0.3),
-     cex=0.5,
-     asp=1,
-     main=paste0("Factorial Map: PC", eje1, " (", round(variance_explained[eje1],1), 
-                 "%) vs PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     xlab=paste0("PC", eje1, " (", round(variance_explained[eje1],1), "%)"),
-     ylab=paste0("PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     las=1)
-
-# Add axes
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-# Add variable arrows (correlation circle)
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="blue", 
-       lwd=2)
-
-# Smart text positioning
-for(i in 1:length(etiq_short)) {
-  if(X[i] > 0 && Y[i] > 0) {
-    pos_val <- 4
-  } else if(X[i] < 0 && Y[i] > 0) {
-    pos_val <- 2
-  } else if(X[i] < 0 && Y[i] < 0) {
-    pos_val <- 2
-  } else {
-    pos_val <- 4
-  }
-  
-  text(X[i], Y[i], 
-       labels=etiq_short[i], 
-       col="darkblue", 
-       cex=0.7,
-       font=2,
-       pos=pos_val,
-       offset=0.3)
-}
-
-# Add correlation circle
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lty=2)
-
-# PROJECT CATEGORICAL VARIABLES (if applicable)
-# Based on your database: Education, MaritalSts, PreferredProductCategory, PreferredChannel, IncomeSegment
-dcat <- c(1, 2, 31, 32, 35)  # Adjust based on which categoricals you want to show
-colors_cat <- c("red", "darkgreen", "orange", "purple", "brown")
-
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  for(i in 1:length(dcat)) {
-    k <- dcat[i]
-    if(is.factor(dd[,k]) || is.character(dd[,k])) {
-      varcat <- factor(dd[,k])
-      fdic1 <- tapply(Psi[,eje1], varcat, mean)
-      fdic2 <- tapply(Psi[,eje2], varcat, mean)
-      
-      points(fdic1, fdic2, 
-             pch=17, 
-             col=colors_cat[i], 
-             cex=1.5)
-      text(fdic1, fdic2, 
-           labels=levels(varcat), 
-           col=colors_cat[i], 
-           cex=0.7,
-           pos=3,
-           font=2)
-    }
-  }
-}
-
-# LEGEND PANEL 1: Variables with high contribution
-par(mar=c(2,2,2,2))
-plot.new()
-legend("center", 
-       title="Numerical Variables",
-       legend=c("Arrow = correlation with PC", 
-                "Length = strength of correlation",
-                "Circle = unit correlation"),
-       bty="n",
-       cex=0.9)
-
-# LEGEND PANEL 2: Categorical variables
-plot.new()
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  legend("center",
-         title="Categorical Variables (Centroids)",
-         legend=names(dd)[dcat],
-         pch=17,
-         col=colors_cat[1:length(dcat)],
-         bty="n",
-         cex=0.9)
-}
-
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
 dev.off()
 
-cat("\n✓ Factorial Map PC1-PC2 displayed and saved as 'PCA_FactorialMap_PC1_PC2.pdf'\n")
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
+dev.off()
 
-################################################################################
-# 6. FACTORIAL MAP 2: PC1 vs PC3 (Alternative view)
-################################################################################
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
+}
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
 
+#### Axes 1 vs 3
+
+```{r maps-1-3, fig.width=10, fig.height=8}
 eje1 <- 1
 eje2 <- 3
+axis_label = "1_3"
 
-X <- Phi[, eje1]
-Y <- Phi[, eje2]
-
-# Display on screen
-par(mfrow=c(1,1), mar=c(5,5,4,2))
-
-plot(Psi[,eje1], Psi[,eje2], 
-     type="p",
-     pch=20,
-     col=rgb(0.5, 0.5, 0.5, 0.3),
-     cex=0.5,
-     asp=1,
-     main=paste0("Factorial Map: PC", eje1, " (", round(variance_explained[eje1],1), 
-                 "%) vs PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     xlab=paste0("PC", eje1, " (", round(variance_explained[eje1],1), "%)"),
-     ylab=paste0("PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     las=1)
-
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="blue", 
-       lwd=2)
-
-# Smart text positioning
-for(i in 1:length(etiq_short)) {
-  if(X[i] > 0 && Y[i] > 0) {
-    pos_val <- 4
-  } else if(X[i] < 0 && Y[i] > 0) {
-    pos_val <- 2
-  } else if(X[i] < 0 && Y[i] < 0) {
-    pos_val <- 2
-  } else {
-    pos_val <- 4
-  }
-  
-  text(X[i], Y[i], 
-       labels=etiq_short[i], 
-       col="darkblue", 
-       cex=0.7,
-       font=2,
-       pos=pos_val,
-       offset=0.3)
-}
-
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lty=2)
-
-# Add categorical centroids
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  for(i in 1:length(dcat)) {
-    k <- dcat[i]
-    if(is.factor(dd[,k]) || is.character(dd[,k])) {
-      varcat <- factor(dd[,k])
-      fdic1 <- tapply(Psi[,eje1], varcat, mean)
-      fdic2 <- tapply(Psi[,eje2], varcat, mean)
-      
-      points(fdic1, fdic2, 
-             pch=17, 
-             col=colors_cat[i], 
-             cex=1.5)
-      text(fdic1, fdic2, 
-           labels=levels(varcat), 
-           col=colors_cat[i], 
-           cex=0.7,
-           pos=3,
-           font=2)
-    }
-  }
-  
-  legend("bottomright",
-         title="Categorical Variables",
-         legend=names(dd)[dcat],
-         pch=17,
-         col=colors_cat[1:length(dcat)],
-         bty="n",
-         cex=0.8)
-}
-
-# Now save to PDF
-pdf("PCA_FactorialMap_PC1_PC3.pdf", width=12, height=10)
-par(mar=c(5,5,4,2))
-
-plot(Psi[,eje1], Psi[,eje2], 
-     type="p",
-     pch=20,
-     col=rgb(0.5, 0.5, 0.5, 0.3),
-     cex=0.5,
-     asp=1,
-     main=paste0("Factorial Map: PC", eje1, " (", round(variance_explained[eje1],1), 
-                 "%) vs PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     xlab=paste0("PC", eje1, " (", round(variance_explained[eje1],1), "%)"),
-     ylab=paste0("PC", eje2, " (", round(variance_explained[eje2],1), "%)"),
-     las=1)
-
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="blue", 
-       lwd=2)
-text(X, Y, 
-     labels=etiq, 
-     col="darkblue", 
-     cex=0.8,
-     font=2,
-     pos=4)
-
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lty=2)
-
-# Add categorical centroids
-if(length(dcat) > 0 && all(dcat <= ncol(dd))) {
-  for(i in 1:length(dcat)) {
-    k <- dcat[i]
-    if(is.factor(dd[,k]) || is.character(dd[,k])) {
-      varcat <- factor(dd[,k])
-      fdic1 <- tapply(Psi[,eje1], varcat, mean)
-      fdic2 <- tapply(Psi[,eje2], varcat, mean)
-      
-      points(fdic1, fdic2, 
-             pch=17, 
-             col=colors_cat[i], 
-             cex=1.5)
-      text(fdic1, fdic2, 
-           labels=levels(varcat), 
-           col=colors_cat[i], 
-           cex=0.7,
-           pos=3,
-           font=2)
-    }
-  }
-  
-  legend("bottomright",
-         title="Categorical Variables",
-         legend=names(dd)[dcat],
-         pch=17,
-         col=colors_cat[1:length(dcat)],
-         bty="n",
-         cex=0.8)
-}
-
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
 dev.off()
 
-cat("\n✓ Factorial Map PC1-PC3 displayed and saved as 'PCA_FactorialMap_PC1_PC3.pdf'\n")
-
-################################################################################
-# 7. DETAILED INDIVIDUALS MAP BY CATEGORY
-################################################################################
-
-# Choose main categorical variable for coloring
-# Suggested: Education (1), MaritalSts (2), PreferredChannel (32), or CustomerSegment (38)
-main_cat <- 1  # Education - change this to explore different groupings
-
-# Display on screen
-par(mfrow=c(1,1), mar=c(5,5,4,2))
-
-varcat <- factor(dd[, main_cat])
-colors_ind <- rainbow(nlevels(varcat))
-
-plot(Psi[,1], Psi[,2],
-     col=colors_ind[as.numeric(varcat)],
-     pch=19,
-     cex=0.8,
-     asp=1,
-     main=paste("Individuals Projection colored by", names(dd)[main_cat]),
-     xlab=paste0("PC1 (", round(variance_explained[1],1), "%)"),
-     ylab=paste0("PC2 (", round(variance_explained[2],1), "%)"),
-     las=1)
-
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-# Add centroids
-fdic1 <- tapply(Psi[,1], varcat, mean)
-fdic2 <- tapply(Psi[,2], varcat, mean)
-
-points(fdic1, fdic2, 
-       pch=17, 
-       col=colors_ind, 
-       cex=2.5,
-       lwd=2)
-text(fdic1, fdic2, 
-     labels=levels(varcat), 
-     col="white", 
-     cex=0.8,
-     font=2)
-
-legend("topright",
-       legend=levels(varcat),
-       pch=19,
-       col=colors_ind,
-       title=names(dd)[main_cat],
-       bty="n",
-       cex=0.9)
-
-# Now save to PDF
-pdf("PCA_IndividualsMap_Colored.pdf", width=12, height=10)
-par(mar=c(5,5,4,2))
-
-varcat <- factor(dd[, main_cat])
-colors_ind <- rainbow(nlevels(varcat))
-
-plot(Psi[,1], Psi[,2],
-     col=colors_ind[as.numeric(varcat)],
-     pch=19,
-     cex=0.8,
-     asp=1,
-     main=paste("Individuals Projection colored by", names(dd)[main_cat]),
-     xlab=paste0("PC1 (", round(variance_explained[1],1), "%)"),
-     ylab=paste0("PC2 (", round(variance_explained[2],1), "%)"),
-     las=1)
-
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-# Add centroids
-fdic1 <- tapply(Psi[,1], varcat, mean)
-fdic2 <- tapply(Psi[,2], varcat, mean)
-
-points(fdic1, fdic2, 
-       pch=17, 
-       col=colors_ind, 
-       cex=2.5,
-       lwd=2)
-text(fdic1, fdic2, 
-     labels=levels(varcat), 
-     col="white", 
-     cex=0.8,
-     font=2)
-
-legend("topright",
-       legend=levels(varcat),
-       pch=19,
-       col=colors_ind,
-       title=names(dd)[main_cat],
-       bty="n",
-       cex=0.9)
-
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
 dev.off()
 
-cat("\n✓ Individuals map displayed and saved as 'PCA_IndividualsMap_Colored.pdf'\n")
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
+}
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
 
-points(fdic1, fdic2, 
-       pch=17, 
-       col=colors_ind, 
-       cex=2.5,
-       lwd=2)
-text(fdic1, fdic2, 
-     labels=levels(varcat), 
-     col="white", 
-     cex=0.8,
-     font=2)
+#### Axes 1 vs 4
 
-legend("topright",
-       legend=levels(varcat),
-       pch=19,
-       col=colors_ind,
-       title=names(dd)[main_cat],
-       bty="n",
-       cex=0.9)
+```{r maps-1-4, fig.width=10, fig.height=8}
+eje1 <- 1
+eje2 <- 4
+axis_label = "1_4"
 
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
 dev.off()
 
-cat("\n✓ Individuals map saved as 'PCA_IndividualsMap_Colored.pdf'\n")
-
-################################################################################
-# 8. QUALITY METRICS AND CONTRIBUTIONS
-################################################################################
-
-# Display on screen
-par(mfrow=c(2,2), mar=c(5,6,4,2))
-
-for(i in 1:min(4, nd)) {
-  contrib_pc <- sort(contrib_vars[,i], decreasing=TRUE)
-  
-  barplot(contrib_pc,
-          main=paste("Variable Contributions to PC", i),
-          xlab="Contribution (%)",
-          horiz=TRUE,
-          las=1,
-          col="steelblue",
-          border="white",
-          xlim=c(0, max(contrib_pc)*1.1))
-  abline(v=100/nrow(contrib_vars), col="red", lty=2, lwd=2)
-}
-
-# Save to PDF
-pdf("PCA_Contributions.pdf", width=12, height=8)
-par(mfrow=c(2,2), mar=c(5,6,4,2))
-
-for(i in 1:min(4, nd)) {
-  contrib_pc <- sort(contrib_vars[,i], decreasing=TRUE)
-  
-  barplot(contrib_pc,
-          main=paste("Variable Contributions to PC", i),
-          xlab="Contribution (%)",
-          horiz=TRUE,
-          las=1,
-          col="steelblue",
-          border="white",
-          xlim=c(0, max(contrib_pc)*1.1))
-  abline(v=100/nrow(contrib_vars), col="red", lty=2, lwd=2)
-}
-
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
 dev.off()
 
-cat("\n✓ Contribution plots displayed and saved as 'PCA_Contributions.pdf'\n")
-
-################################################################################
-# 9. CORRELATION CIRCLE (Zoomed)
-################################################################################
-
-# Display on screen
-par(mfrow=c(1,1), mar=c(5,5,4,2))
-
-plot(Phi[,1], Phi[,2],
-     type="n",
-     xlim=c(-1, 1),
-     ylim=c(-1, 1),
-     asp=1,
-     main="Correlation Circle: Variables on PC1-PC2",
-     xlab=paste0("PC1 (", round(variance_explained[1],1), "%)"),
-     ylab=paste0("PC2 (", round(variance_explained[2],1), "%)"),
-     las=1)
-
-# Draw circle
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lwd=2)
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-# Add variable arrows
-X <- Phi[,1]
-Y <- Phi[,2]
-
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="darkblue", 
-       lwd=2)
-
-# Label variables with quality indication and smart positioning
-for(i in 1:length(etiq_short)) {
-  quality <- cos2_vars[i,1] + cos2_vars[i,2]
-  text_col <- ifelse(quality > 0.5, "darkblue", "gray50")
-  text_font <- ifelse(quality > 0.5, 2, 1)
-  
-  # Smart positioning based on quadrant
-  if(X[i] > 0 && Y[i] > 0) {
-    pos_val <- 4
-  } else if(X[i] < 0 && Y[i] > 0) {
-    pos_val <- 2
-  } else if(X[i] < 0 && Y[i] < 0) {
-    pos_val <- 2
-  } else {
-    pos_val <- 4
-  }
-  
-  text(X[i], Y[i], 
-       labels=etiq_short[i], 
-       col=text_col, 
-       cex=0.7,
-       font=text_font,
-       pos=pos_val,
-       offset=0.3)
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
 }
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
 
-legend("bottomright",
-       legend=c("Well represented (cos²>0.5)", "Poorly represented"),
-       col=c("darkblue", "gray50"),
-       lty=1,
-       lwd=2,
-       bty="n")
+#### Axes 2 vs 3
 
-# Save to PDF
-pdf("PCA_CorrelationCircle.pdf", width=10, height=10)
-par(mar=c(5,5,4,2))
+```{r maps-2-3, fig.width=10, fig.height=8}
+eje1 <- 2
+eje2 <- 3
+axis_label = "2_3"
 
-plot(Phi[,1], Phi[,2],
-     type="n",
-     xlim=c(-1, 1),
-     ylim=c(-1, 1),
-     asp=1,
-     main="Correlation Circle: Variables on PC1-PC2",
-     xlab=paste0("PC1 (", round(variance_explained[1],1), "%)"),
-     ylab=paste0("PC2 (", round(variance_explained[2],1), "%)"),
-     las=1)
-
-# Draw circle
-symbols(0, 0, circles=1, inches=FALSE, add=TRUE, fg="blue", lwd=2)
-abline(h=0, v=0, col="gray40", lty=2)
-grid(col="gray90", lty="dotted")
-
-# Add variable arrows
-X <- Phi[,1]
-Y <- Phi[,2]
-
-arrows(ze, ze, X, Y, 
-       length=0.1, 
-       col="darkblue", 
-       lwd=2)
-
-# Label variables with quality indication and smart positioning
-for(i in 1:length(etiq_short)) {
-  quality <- cos2_vars[i,1] + cos2_vars[i,2]
-  text_col <- ifelse(quality > 0.5, "darkblue", "gray50")
-  text_font <- ifelse(quality > 0.5, 2, 1)
-  
-  # Smart positioning
-  if(X[i] > 0 && Y[i] > 0) {
-    pos_val <- 4
-  } else if(X[i] < 0 && Y[i] > 0) {
-    pos_val <- 2
-  } else if(X[i] < 0 && Y[i] < 0) {
-    pos_val <- 2
-  } else {
-    pos_val <- 4
-  }
-  
-  text(X[i], Y[i], 
-       labels=etiq_short[i], 
-       col=text_col, 
-       cex=0.7,
-       font=text_font,
-       pos=pos_val,
-       offset=0.3)
-}
-
-legend("bottomright",
-       legend=c("Well represented (cos²>0.5)", "Poorly represented"),
-       col=c("darkblue", "gray50"),
-       lty=1,
-       lwd=2,
-       bty="n")
-
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
 dev.off()
 
-cat("\n✓ Correlation circle displayed and saved as 'PCA_CorrelationCircle.pdf'\n")
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
+dev.off()
 
-################################################################################
-# 10. SUMMARY REPORT
-################################################################################
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
+}
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
 
-cat("\n" , rep("=", 70), "\n", sep="")
-cat("PCA ANALYSIS SUMMARY\n")
-cat(rep("=", 70), "\n", sep="")
-cat("\nTotal variables analyzed:", ncol(dcon), "\n")
-cat("Total observations:", nrow(dcon), "\n")
-cat("\nComponents selected:", nd, "\n")
-cat("Total variance explained:", round(cumulative_variance[nd], 2), "%\n")
-cat("\nTop 3 contributing variables to PC1:\n")
-top3_pc1 <- names(sort(contrib_vars[,1], decreasing=TRUE)[1:3])
-print(top3_pc1)
-cat("\nTop 3 contributing variables to PC2:\n")
-top3_pc2 <- names(sort(contrib_vars[,2], decreasing=TRUE)[1:3])
-print(top3_pc2)
+#### Axes 2 vs 4
 
-cat("\n", rep("=", 70), "\n", sep="")
-cat("All plots have been saved as PDF files.\n")
-cat("Files created:\n")
-cat("  - PCA_ScreePlot.pdf\n")
-cat("  - PCA_FactorialMap_PC1_PC2.pdf\n")
-cat("  - PCA_FactorialMap_PC1_PC3.pdf\n")
-cat("  - PCA_IndividualsMap_Colored.pdf\n")
-cat("  - PCA_Contributions.pdf\n")
-cat("  - PCA_CorrelationCircle.pdf\n")
-cat(rep("=", 70), "\n", sep="")
+```{r maps-2-4, fig.width=10, fig.height=8}
+eje1 <- 2
+eje2 <- 4
+axis_label = "2_4"
 
-cat("\n✓ Analysis complete! Ready for interpretation.\n\n")
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
+dev.off()
 
-################################################################################
-# END OF SCRIPT
-################################################################################
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
+dev.off()
+
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
+}
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
+
+#### Axes 3 vs 4
+
+```{r maps-3-4, fig.width=10, fig.height=8}
+eje1 <- 3
+eje2 <- 4
+axis_label = "3_4"
+
+# --- Individuals ---
+pdf(paste0("individuals_map_", axis_label, ".pdf"), width = 10, height = 8)
+fator_color <- dd$CustomerSegment
+plot(Psi[, eje1], Psi[, eje2],
+     main=paste("Individuals Map (Axes", eje1, "vs", eje2, ") Colored by CustomerSegment"),
+     xlab=paste0("PC", eje1, " (", round(eig_table[eje1, 2], 1), "%)"),
+     ylab=paste0("PC", eje2, " (", round(eig_table[eje2, 2], 1), "%)"),
+     pch=16, col=as.numeric(fator_color)) 
+legend("bottomright", levels(fator_color), pch=16, col=1:length(levels(fator_color)), cex=0.8, title="Customer Segment")
+dev.off()
+
+# --- Numerical Variables ---
+pdf(paste0("numerical_variables_map_", axis_label, ".pdf"), width = 10, height = 10)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     main=paste("Numerical Variables (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2), asp=1) 
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, lty=2, col="grey")
+arrows(0, 0, rot[, eje1], rot[, eje2], col="red", length=0.1)
+text(rot[, eje1]*1.1, rot[, eje2]*1.1, labels=rownames(rot), col="red", cex=0.7)
+dev.off()
+
+# --- Qualitative Variables ---
+pdf(paste0("qualitative_modalities_map_", axis_label, ".pdf"), width = 10, height = 8)
+par(mar=c(5.1, 4.1, 4.1, 2.1)) # Reset margins
+plot(Psi[, eje1], Psi[, eje2], type="n",
+     main=paste("Qualitative Modalities (Axes", eje1, "vs", eje2, ")"),
+     xlab=paste0("PC", eje1), ylab=paste0("PC", eje2))
+abline(h=0, lty=2, col="grey"); abline(v=0, lty=2, col="grey")
+c <- 1
+for (k in illu_quali_vars) {
+  fator <- as.factor(dd[, k])
+  fdic1 <- tapply(Psi[, eje1], fator, mean)
+  fdic2 <- tapply(Psi[, eje2], fator, mean)
+  text(fdic1, fdic2, labels=names(fdic1), col=qual_colors[c], cex=0.8, font=2)
+  c <- c + 1
+}
+legend("topleft", illu_quali_vars, text.col=qual_colors, bty="n", cex=0.8)
+dev.off()
+```
+
+---
+
+### 4. Interpretation of Relationships (Axes 1 & 2)
+
+**Note:** The primary interpretation typically focuses on the first two axes as they explain the most variance. Interpretations for other axes (e.g., PC3, PC4) can be derived by examining their corresponding variable maps if specific secondary patterns are of interest.
+
+#### Interpretation of Axis 1 (PC1: 37.5% Variance)
+
+Dimension 1 is the horizontal axis.
+
+* **What drives it?** This axis is defined by **spending, income, and customer value**.
+    * **Numerical:** All "Expense" variables (`WineExp`, `MeatExp`, `FruitExp`, etc.) and purchasing channels (`CatalogPurc`, `StorePurc`, `WebPurc`) point strongly to the **right**. `Income` also points strongly to the right.
+    * **Qualitative:** The centroids for `High` (IncomeSegment) and `CustomerSegment 2` are far to the **right**. The centroids for `Low` (IncomeSegment) and `Segments 1 & 3` are far to the **left**. The `Kidhome 1` centroid is also on the **left**, while `Kidhome 0` is on the **right**.
+
+* **Latent Variable (Conclusion):**
+    * **Dimension 1 represents a "Customer Value" axis.**
+    * **Positive Side (Right):** This is the **High-Value Customer**. They have a high `Income`, spend heavily, and are in `CustomerSegment 2`. They are also less likely to have young children (`Kidhome 0`).
+    * **Negative Side (Left):** This is the **Low-Value Customer**. They have `Low` income, belong to `Segment 1` or `3`, and are more likely to have a child (`Kidhome 1`).
+
+#### Interpretation of Axis 2 (PC2: 10.6% Variance)
+
+Dimension 2 is the vertical axis.
+
+* **What drives it?** This axis is defined by **shopping behavior and lifestage**.
+    * **Numerical:** The *strongest* active variable is `DealsPurc`, which points straight **up**. `WebPurc` also points up.
+    * **Qualitative:** The centroids for `Teenhome 1` and `Teenhome 2` are strongly positive (**top**). The preferred channels `DealsPurc` and `WebPurc` are also at the **top**. Conversely, `Teenhome 0` and `HasChildren 0` are at the **bottom**.
+
+* **Latent Variable (Conclusion):**
+    * **Dimension 2 represents a "Lifestage & Channel" axis.**
+    * **Positive Side (Top):** This is the **Deal-Seeking, Web-Oriented Parent of Teens**. This customer shops online (`WebPurc`), is motivated by discounts (`DealsPurc`), and is very likely to have one or more teenagers at home.
+    * **Negative Side (Bottom):** This is the **Established, No-Teens, Traditional Shopper**. This customer does *not* have children (`HasChildren 0`), does not have teens (`Teenhome 0`), and is associated with the `CatalogPurc` preferred category.
+```
