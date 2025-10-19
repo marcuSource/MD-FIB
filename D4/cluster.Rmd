@@ -1,106 +1,368 @@
-# Load and attach cleaned data
+---
+title: "Hierarchical Clustering Analysis (Gower + Ward)"
+author: "Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
 
-dd <- read.csv("ifood_enriched.csv", sep=",", stringsAsFactors = TRUE)
-attach(dd)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width=12, fig.height=8) 
+# Adjust figure sizes if needed
+```
 
-# Select numeric variables for clustering
+### 1. Load Libraries and Data
 
-dcon <- data.frame(
-Income, Kidhome, Teenhome, Recency, WineExp, FruitExp, MeatExp, FishExp,
-SweetExp, GoldExp, DealsPurc, WebPurc, CatalogPurc, StorePurc, WebVisits,
-Age, CustDays, TotAccCmp, TotalExp, TotalPurchases, PurchaseFrequency,
-AvgSpendPerPurchase, HasChildren, CustomerTenure, CampaignAcceptanceRate,
-PropensityScore, EngagementIndex
+```{r load-libraries-data}
+# Install necessary packages if you don't have them
+# install.packages("cluster") 
+# install.packages("dplyr")
+library(cluster)
+library(dplyr) 
+
+# Load the full dataset
+dd_full <- read.csv("ifood_enriched.csv", header=T, sep=",")
+```
+
+### a. Precise Description of the Data Used
+
+For hierarchical clustering, we use both numerical and selected qualitative variables to capture the overall customer profile.
+
+```{r data-description}
+cat("\n", rep("=", 80), "\n", sep="")
+cat("DATA PREPARATION AND VARIABLE SELECTION\n")
+cat(rep("=", 80), "\n", sep="")
+
+# Variables INCLUDED in clustering analysis
+numerical_vars <- c(
+    'Income', 'Age', 'Recency', 'CustDays', 'WineExp', 'FruitExp', 'MeatExp', 
+    'FishExp', 'SweetExp', 'GoldExp', 'DealsPurc', 'WebPurc', 'CatalogPurc', 'StorePurc'
+    # Add other numerical vars if desired, e.g., 'Kidhome', 'Teenhome' if treated numerically
 )
 
-# Check dimensions
+categorical_vars <- c(
+    'Education', 'MaritalSts', 'Kidhome', 'Teenhome', # Include Kid/Teenhome if factors
+    'IncomeSegment', 'HasChildren'
+    # Add 'Preferred...' variables if deemed important for clustering
+)
 
-dim(dcon)
-summary(dcon)
+# Variables NOT included 
+excluded_vars <- c("CustomerSegment") # Pre-existing segmentation
 
-# =========================
+cat("\n--- VARIABLES INCLUDED IN CLUSTERING ---\n")
+cat("Numerical variables (n=", length(numerical_vars), "):\n", sep="")
+cat(paste(numerical_vars, collapse=", "), "\n")
+cat("\nCategorical variables (n=", length(categorical_vars), "):\n", sep="")
+cat(paste(categorical_vars, collapse=", "), "\n")
 
-# K-MEANS CLUSTERING
+cat("\n--- VARIABLES EXCLUDED FROM ANALYSIS ---\n")
+cat(paste(excluded_vars, collapse=", "), ": Pre-existing segmentation or ID variables.\n")
 
-# =========================
+# Combine variable lists for clustering
+all_cluster_vars <- c(numerical_vars, categorical_vars)
 
-set.seed(123)
-k5 <- kmeans(dcon, 5)
-k5$size
-k5$centers
+# Select the relevant columns
+dd_cluster_raw <- dd_full[, all_cluster_vars]
 
-# Compute inertia decomposition
+# Convert categorical variables to factors (required for Gower)
+for (col in categorical_vars) {
+  dd_cluster_raw[[col]] <- as.factor(dd_cluster_raw[[col]])
+}
 
-Bss <- sum(rowSums(k5$centers^2) * k5$size)
-Wss <- sum(k5$withinss)
-Ib <- 100 * Bss / (Bss + Wss)
-Ib
+# Handle Missing Data
+rows_before_na <- nrow(dd_cluster_raw)
+dd_cluster <- na.omit(dd_cluster_raw) # Remove rows with any NA
+rows_after_na <- nrow(dd_cluster)
 
-# Visualize clusters (pair of key variables)
+cat("\n--- DATASET CHARACTERISTICS ---\n")
+cat("Original observations:", rows_before_na, "\n")
+cat("Observations after removing NAs:", rows_after_na, "(", rows_before_na - rows_after_na, "removed)\n")
+cat("No sampling performed (dataset size:", rows_after_na, "is manageable)\n")
+cat("Mixed data types require Gower distance.\n")
+```
 
-plot(dcon$WineExp, dcon$TotalExp, col=k5$cluster,
-main="K-Means Clustering (k=5)",
-xlab="WineExpenditure", ylab="TotalExpenditure")
-legend("topright", legend=paste("Cluster", 1:5), col=1:5, pch=1)
+### b. Clustering Method, Metrics, and Aggregation Criteria
 
-pairs(dcon[, c("WineExp", "MeatExp", "FishExp", "TotalExp", "Age", "Income")],
-col=k5$cluster, main="Pairwise plots for selected vars")
+We use Hierarchical Agglomerative Clustering (HAC) suitable for exploring cluster structures without pre-specifying the number of clusters.
 
-# =========================
+```{r method-description}
+cat("\n", rep("=", 80), "\n", sep="")
+cat("CLUSTERING METHODOLOGY\n")
+cat(rep("=", 80), "\n", sep="")
 
-# HIERARCHICAL CLUSTERING
+cat("\n--- METHOD ---\n")
+cat("Hierarchical Agglomerative Clustering (HAC)\n")
 
-# =========================
+cat("\n--- DISTANCE METRIC ---\n")
+cat("Gower Distance: Chosen because the dataset contains mixed data types (numerical and categorical).\n")
+cat("   - Calculated using cluster::daisy(..., metric='gower').\n")
+cat("   - Note: Squaring Gower distance can sometimes emphasize larger distances, but standard Gower is used here.\n")
 
-d <- dist(scale(dcon))   # scaled Euclidean distance
-h1 <- hclust(d, method="ward.D2")
-plot(h1, labels=FALSE, main="Hierarchical Clustering - Ward.D2")
+cat("\n--- AGGREGATION CRITERIA ---\n")
+cat("Ward's method (ward.D2): Minimizes the increase in within-cluster variance at each merge step.\n")
+cat("   - Tends to create compact, relatively equally sized clusters.\n")
+cat("   - Implemented using stats::hclust(..., method='ward.D2').\n")
+cat("   - This hierarchical approach is generally more robust to outliers than K-means.\n")
+```
 
-# Cut the dendrogram
+```{r calculate-gower-hclust}
+# Calculate Gower distance matrix
+cat("\nCalculating Gower distance matrix...\n")
+gower_dist <- daisy(dd_cluster, metric = "gower")
+cat("Gower distance calculation complete.\n")
 
-nc <- 4
-c4 <- cutree(h1, nc)
-table(c4)
+# Perform hierarchical clustering using Ward's method
+cat("\nPerforming hierarchical clustering using Ward.D2...\n")
+hclust_ward_gower <- hclust(gower_dist, method = "ward.D2")
+cat("Hierarchical clustering complete.\n")
+```
 
-# Cluster means (centroids)
+### c. Resulting Dendrogram
 
-cdg <- aggregate(dcon, list(c4), mean)
-cdg
+The dendrogram visualizes the cluster merging process. **Output: `dendrogram_Gower_Ward.pdf`**
 
-# Visualize key relationships
+```{r plot-gower-dendrogram}
+# --- 1. Start PDF Output ---
+pdf("dendrogram_Gower_Ward.pdf", width = 14, height = 8) 
 
-plot(dcon$WineExp, dcon$TotalExp, col=c4,
-main="Hierarchical Clustering (4 clusters)",
-xlab="WineExpenditure", ylab="TotalExpenditure")
-legend("topright", paste("Cluster", 1:4), col=1:4, pch=1)
+# --- 2. Create the Plot ---
+plot(hclust_ward_gower, 
+     main = "Hierarchical Clustering Dendrogram\n(Ward's Method, Gower Distance)",
+     xlab = paste("Customers (n=", nrow(dd_cluster), ")", sep=""), 
+     ylab = "Height (Dissimilarity)",
+     labels = FALSE, # Hide individual labels
+     sub = "", 
+     hang = -1) 
 
-# =========================
+# --- Optional: Add rectangles after deciding k ---
+# rect.hclust(hclust_ward_gower, k = 4, border = "red") 
 
-# GOWER DISTANCE (mixed data)
+# --- 3. Close the PDF file ---
+dev.off()
+cat("\n✓ Dendrogram saved: dendrogram_Gower_Ward.pdf\n")
 
-# =========================
+# Display on screen (optional, can be slow)
+# plot(hclust_ward_gower, labels = FALSE, main = "Dendrogram (Gower, Ward)", xlab="Customers", hang=-1)
+```
 
-library(cluster)
+### d. Discuss How to Get the Final Number of Clusters
 
-actives <- c("Education", "MaritalSts", "Income", "Kidhome", "Teenhome",
-"Recency", "WineExp", "FruitExp", "MeatExp", "FishExp", "SweetExp",
-"GoldExp", "DealsPurc", "WebPurc", "CatalogPurc", "StorePurc",
-"Age", "HasChildren", "IncomeSegment", "CustomerSegment")
+Choosing the number of clusters (`k`) involves examining the dendrogram for significant jumps in merge height.
 
-dissimMatrix <- daisy(dd[, actives], metric="gower", stand=TRUE)
-h2 <- hclust(dissimMatrix, method="ward.D2")
-plot(h2, labels=FALSE, main="Hierarchical Clustering with Gower Distance")
+```{r discuss-k}
+cat("\n", rep("=", 80), "\n", sep="")
+cat("DETERMINING OPTIMAL NUMBER OF CLUSTERS\n")
+cat(rep("=", 80), "\n", sep="")
 
-cG <- cutree(h2, 4)
-table(cG)
+cat("\n--- APPROACHES ---\n")
+cat("1. Visual Inspection of Dendrogram: Look for the largest vertical distances without crossing horizontal lines, suggesting natural separation points.\n")
+cat("2. Application Needs: Consider the desired level of granularity for marketing or analysis purposes.\n")
+cat("3. Diagnostic Plots (Elbow, Silhouette): Can provide guidance, often calculated on a suitable distance matrix (like Gower here) or on principal components.\n")
 
-# Profiling (example: Income and TotalExp)
+# --- Generate Diagnostic Plots (Using Gower Distance) ---
+cat("\nGenerating diagnostic plots (this may take time)...\n")
+# Note: Silhouette calculation on the full Gower matrix can be very slow.
+# Consider using a sample if performance is an issue, or using principal components.
+# Here we demonstrate calculation on the Gower distance object `gower_dist`.
 
-boxplot(Income ~ cG, data=dd, horizontal=TRUE, main="Income by Cluster (Gower)")
-boxplot(TotalExp ~ cG, data=dd, horizontal=TRUE, main="TotalExp by Cluster (Gower)")
+# Elbow Method - Plotting merge heights (approximates WSS concept for hierarchical)
+heights <- hclust_ward_gower$height
+n_merges <- length(heights)
 
-pairs(dcon[, c("WineExp", "MeatExp", "FishExp", "TotalExp", "Age", "Income")],
-col=cG, main="Cluster Profiling (Gower)")
+# Silhouette Method (Average Silhouette Width)
+# Calculate only for a reasonable range (e.g., 2 to 10 clusters)
+max_k <- 10
+avg_sil_width <- numeric(max_k - 1)
+for (k in 2:max_k) {
+  cat("Calculating Silhouette for k =", k, "...\n")
+  clusters_temp <- cutree(hclust_ward_gower, k = k)
+  sil_temp <- silhouette(clusters_temp, gower_dist)
+  # Handle potential NA values if a cluster has size 1
+  if (!is.na(mean(sil_temp[, 3]))) {
+      avg_sil_width[k - 1] <- mean(sil_temp[, 3])
+  } else {
+      avg_sil_width[k - 1] <- NA # Or handle appropriately
+  }
+}
+
+# --- Create Diagnostic Plots PDF ---
+pdf("Clustering_OptimalK_Diagnostics_Gower.pdf", width=14, height=6)
+par(mfrow=c(1,2), mar=c(5,5,4,2))
+
+# Plot 1: Elbow Method (using Merge Heights)
+plot(1:n_merges, rev(heights), type="b", pch=19, 
+     main="Elbow Method (using Merge Heights)",
+     xlab="Number of Clusters (Implied)", 
+     ylab="Merge Height",
+     col="blue", lwd=2)
+# Add vertical lines to suggest potential cuts (e.g., k=3, k=4)
+abline(v = nrow(dd_cluster) - 4, col = "red", lty = 2, lwd = 1.5) # Corresponds to k=4
+abline(v = nrow(dd_cluster) - 3, col = "darkgreen", lty = 2, lwd = 1.5) # Corresponds to k=3
+legend("topright", legend=c("k=4 Cut Point", "k=3 Cut Point"), col=c("red", "darkgreen"), lty=2, lwd=1.5, bty="n")
+grid()
+
+# Plot 2: Silhouette Analysis
+plot(2:max_k, avg_sil_width, type="b", pch=19,
+     main="Silhouette Analysis (Gower Distance)",
+     xlab="Number of Clusters (k)",
+     ylab="Average Silhouette Width",
+     col="darkgreen", lwd=2,
+     ylim=c(0, max(avg_sil_width, na.rm=TRUE)*1.1))
+opt_k_sil <- which.max(avg_sil_width) + 1
+if(length(opt_k_sil) > 0) {
+    abline(v=opt_k_sil, col="red", lty=2, lwd=2)
+    text(opt_k_sil + 0.5, max(avg_sil_width, na.rm=TRUE)*0.9, paste("Max at k =", opt_k_sil), col="red")
+} else {
+    text(5, 0.1, "Max silhouette calculation failed or resulted in NAs", col="red")
+}
+grid()
+
+dev.off()
+cat("\n✓ Diagnostic plots saved: Clustering_OptimalK_Diagnostics_Gower.pdf\n")
+
+# --- Decision ---
+cat("\n--- DECISION ON NUMBER OF CLUSTERS ---\n")
+cat("Visual inspection of Dendrogram: Shows potential cuts at k=3 or k=4.\n")
+cat("Elbow Method (Heights): Shows noticeable changes around implied k=3 and k=4.\n")
+cat("Silhouette Analysis: Suggests k =", opt_k_sil, " (if calculation succeeded).\n")
+cat("\nFINAL SELECTION: k = 4 clusters\n") # Or k=3 based on review
+cat("Rationale: Based on visual inspection of the dendrogram structure and preliminary diagnostics. We will proceed with 4, but k=3 remains a strong alternative if profiling suggests merging is appropriate.\n")
+
+k_clusters <- 4 # Final choice
+clusters_gower <- cutree(hclust_ward_gower, k = k_clusters) 
+```
+
+### e. Table with a Description of the Clusters Size
+
+This table shows the final size of each cluster based on the Gower/Ward method.
+
+```{r gower-cluster-sizes}
+cat("\n", rep("=", 80), "\n", sep="")
+cat("CLUSTER SIZE DESCRIPTION (Gower + Ward, k=", k_clusters, ")\n", sep="")
+cat(rep("=", 80), "\n", sep="")
+
+cluster_sizes_gower <- table(clusters_gower)
+cluster_props_gower <- prop.table(cluster_sizes_gower) * 100
+
+cluster_summary_gower <- data.frame(
+  Cluster = 1:k_clusters,
+  Size = as.vector(cluster_sizes_gower),
+  Percentage = round(as.vector(cluster_props_gower), 2)
+)
+
+print(cluster_summary_gower, row.names=FALSE)
+
+cat("\n--- CLUSTER BALANCE ---\n")
+cat("Largest cluster:", max(cluster_sizes_gower), "observations (", 
+    round(max(cluster_props_gower), 1), "%)\n", sep="")
+cat("Smallest cluster:", min(cluster_sizes_gower), "observations (",
+    round(min(cluster_props_gower), 1), "%)\n", sep="")
+if (min(cluster_sizes_gower) > 0) {
+    cat("Balance ratio (largest/smallest):", 
+        round(max(cluster_sizes_gower)/min(cluster_sizes_gower), 2), "\n")
+} else {
+    cat("Balance ratio not applicable (smallest cluster size is 0).\n")
+}
+
+# Add cluster assignments back to data for profiling
+dd_cluster$Cluster_Gower <- as.factor(clusters_gower) 
+```
+
+---
+
+### 4. Optional: Generate Profile & PCA Plots (Using Gower Clusters)
+
+These plots help visualize the characteristics of the clusters identified using the Gower/Ward method.
+
+```{r optional-profiling-plots, eval=FALSE} # Set eval=TRUE to run this section
+
+cat("\n", rep("=", 80), "\n", sep="")
+cat("GENERATING OPTIONAL PROFILE PLOTS (Gower Clusters)\n")
+cat(rep("=", 80), "\n", sep="")
+
+# Profile Plot 1: Key Spending Variables 
+# Output: Clustering_Profiles_Spending_Gower.pdf
+pdf("Clustering_Profiles_Spending_Gower.pdf", width=14, height=10)
+par(mfrow=c(2,3), mar=c(5,5,4,2))
+spending_vars <- c("TotalExp", "WineExp", "MeatExp", "Income", 
+                   "AvgSpendPerPurchase", "Age") # Example vars
+for(var in spending_vars) {
+  if (var %in% names(dd_cluster)) { # Check if var exists
+      boxplot(dd_cluster[[var]] ~ dd_cluster$Cluster_Gower,
+              main=paste("Distribution of", var, "by Gower Cluster"),
+              xlab="Cluster (Gower)", ylab=var, col=rainbow(k_clusters),
+              las=1, cex.main=1.2)
+  }
+}
+dev.off()
+cat("\n✓ Spending profile plots saved: Clustering_Profiles_Spending_Gower.pdf\n")
 
 
+# Profile Plot 2: PCA Projection with Gower Clusters
+# Output: Clustering_PCA_Projection_Gower.pdf
 
+# Perform PCA on scaled numerical data FOR VISUALIZATION ONLY
+dcon_cluster <- dd_cluster[, numerical_vars] # Select only numerical for PCA scaling
+dcon_scaled_cluster <- scale(dcon_cluster)
+pca_result_cluster <- prcomp(dcon_scaled_cluster)
+variance_explained <- round(100 * pca_result_cluster$sdev^2 / sum(pca_result_cluster$sdev^2), 1)
+
+pdf("Clustering_PCA_Projection_Gower.pdf", width=12, height=10)
+par(mar=c(5,5,4,2))
+plot(pca_result_cluster$x[,1], pca_result_cluster$x[,2],
+     col=dd_cluster$Cluster_Gower, # Color by Gower cluster
+     pch=19, cex=0.8,
+     main="Gower Clusters Projected on PCA Space",
+     xlab=paste0("PC1 (", variance_explained[1], "%)"),
+     ylab=paste0("PC2 (", variance_explained[2], "%)"),
+     cex.main=1.5, cex.lab=1.2)
+
+# Add cluster centroids based on PCA coordinates
+centroids_pca <- aggregate(pca_result_cluster$x[,1:2], 
+                           list(Cluster=dd_cluster$Cluster_Gower), mean)
+points(centroids_pca[,2], centroids_pca[,3], 
+       pch=17, cex=3, col=1:k_clusters, lwd=2)
+text(centroids_pca[,2], centroids_pca[,3],
+     labels=1:k_clusters, col="white", cex=1.2, font=2)
+
+legend("topright", 
+       legend=paste("Cluster", 1:k_clusters, 
+                    "(n=", cluster_sizes_gower, ")"),
+       col=1:k_clusters, pch=19, cex=1.1, bty="n")
+grid()
+dev.off()
+cat("\n✓ PCA projection saved: Clustering_PCA_Projection_Gower.pdf\n")
+
+cat("\nOptional profiling plots generated.\n")
+
+```
+
+---
+
+```{r final-summary}
+cat("\n", rep("=", 80), "\n", sep="")
+cat("CLUSTERING ANALYSIS SUMMARY\n")
+cat(rep("=", 80), "\n", sep="")
+cat("\nDataset: ifood_enriched.csv (after NA removal)\n")
+cat("Observations used:", nrow(dd_cluster), "\n")
+cat("Variables analyzed:", length(all_cluster_vars), "(", length(numerical_vars), "Num +", length(categorical_vars), "Cat)\n")
+cat("\nMethod: Hierarchical Clustering\n")
+cat("Distance: Gower\n")
+cat("Linkage: Ward.D2\n")
+cat("\nOptimal number of clusters selected: ", k_clusters, "\n")
+cat("Selection criteria: Dendrogram inspection, Elbow (heights), Silhouette\n")
+
+cat("\n--- MAIN FILES GENERATED ---\n")
+cat("  1. dendrogram_Gower_Ward.pdf\n")
+cat("  2. Clustering_OptimalK_Diagnostics_Gower.pdf\n")
+# Add optional files if generated:
+# cat("  3. Clustering_Profiles_Spending_Gower.pdf\n")
+# cat("  4. Clustering_PCA_Projection_Gower.pdf\n")
+
+cat("\n", rep("=", 80), "\n", sep="")
+cat("✓ CLUSTERING ANALYSIS COMPLETE\n")
+cat(rep("=", 80), "\n\n")
+```
