@@ -1,4 +1,3 @@
-\raggedright
 \section{PCA}
 Principal Component Analysis (PCA) was performed on the selected numerical variables to reduce dimensionality and identify the main axes of variation within the customer data. The analysis focuses on understanding the underlying structure defined by customer demographics and purchasing behaviour.
 
@@ -22,7 +21,9 @@ Figure \ref{fig:scree_plot} shows the percentage of variance explained by each c
 
 Figure \ref{fig:cumulative_variance} shows the cumulative variance explained. Based on Kaiser's criterion (eigenvalues > 1, corresponding to components explaining more variance than an average original variable), to avoid excessive combinations, the first four principal components are selected for potential analysis. These four components cumulatively explain 63.3\% of the total variance and will help us determine which dimensions to focus on.
 
+\subsection{Finding a Subspace}
 
+To determine a subspace, a combination of the first four spaces, the ones with most variance will be plotted against one another.
 
 % Individual factor maps - individual figures
 \begin{figure}[H]
@@ -67,13 +68,13 @@ Figure \ref{fig:cumulative_variance} shows the cumulative variance explained. Ba
     \label{fig:individuals_map_3_4}
 \end{figure}
 
+It's concluded that the planes who will be used for further research are \textbf{PC1-PC2} and \textbf{PC1-PC3}
+
 \newpage
-Following an analysis of the results, PC1 vs PC2 plane was chosen for detailed interpretation as it captures the largest variance and shows the clearest separation. We will also focus on PC1 vs PC3 to offer a more in-depth analysis.
 
+\subsection{Numerical Variables Projection}
 
-
-
-% Numerical - Qualitative variables maps PC1-PC2
+% Numerical variables maps PC1-PC2
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{Imatges/numerical_variables_map_1_2.pdf}
@@ -83,26 +84,25 @@ Following an analysis of the results, PC1 vs PC2 plane was chosen for detailed i
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\linewidth]{Imatges/qualitative_modalities_map_1_2.pdf}
-    \caption{Qualitative modalities map for dimensions 1 and 2}
-    \label{fig:qualitative_map_1_2}
-\end{figure}
-
-Based on the variable projections, the first two principal components can be interpreted as follows:
-
-\begin{itemize}
-    \item \textbf{Axis 1 (PC1: 37.5\%): Customer Value.} The positive side (right) is strongly associated with higher \texttt{Income}, higher spending across most categories (especially \texttt{WineExp}, \texttt{MeatExp}, \texttt{CatalogPurc}), and \texttt{CustomerSegment 2}. The negative side (left) corresponds to lower income, lower spending, \texttt{CustomerSegment 1} \& \texttt{3}, and having younger children (\texttt{Kidhome 1}). This axis primarily differentiates customers based on their overall economic value and engagement.
-    
-    \item \textbf{Axis 2 (PC2: 10.6\%): Lifestage \& Channel Preference.} The positive side (top) is strongly characterized by \texttt{DealsPurc} and \texttt{WebPurc}, along with having teenagers at home (\texttt{Teenhome 1}, \texttt{Teenhome 2}). The negative side (bottom) is associated with having no children or teens (\texttt{HasChildren 0}, \texttt{Teenhome 0}) and potentially more traditional purchasing (\texttt{CatalogPurc}). This axis differentiates customers based on their life stage (presence of teens) and their preferred shopping channels and deal sensitivity.
-\end{itemize}
-
-
-% Numerical - Qualitative variables maps PC1-PC3
-\begin{figure}[H]
-    \centering
     \includegraphics[width=0.9\linewidth]{Imatges/numerical_variables_map_1_3.pdf}
     \caption{Numerical variables correlation circle for dimensions 1 and 3}
     \label{fig:numerical_map_1_3}
+\end{figure}
+
+From Figure \ref{fig:numerical_map_1_2}, we can observe that the first dimension (PC1) is strongly positively correlated with variables like \texttt{Income}, \texttt{WineExp}, \texttt{MeatExp}, and other expenditure variables. Most variables point to the right side of the plot, indicating they all contribute to the same dimension of customer value.
+
+In Figure \ref{fig:numerical_map_1_3}, we see that \texttt{Age} has a strong positive correlation with PC3, while \texttt{CustDays} has a negative correlation, indicating these variables define opposite sides of the third principal component.
+
+\newpage
+\subsection{Qualitative Variables Projection}
+
+The following analysis examines the positions of the illustrative qualitative variables on the factorial maps defined by PC1-PC2 and PC1-PC3. The variables are grouped thematically to build a coherent narrative around the customer profiles.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Imatges/qualitative_modalities_map_1_2.pdf}
+    \caption{Qualitative modalities map for dimensions 1 and 2}
+    \label{fig:qualitative_map_1_2}
 \end{figure}
 
 \begin{figure}[H]
@@ -112,11 +112,52 @@ Based on the variable projections, the first two principal components can be int
     \label{fig:qualitative_map_1_3}
 \end{figure}
 
+\newpage
+\subsubsection{Core Demographics}
 
-Based on the variable projections, the first and third principal components can be interpreted as follows:
+This group of variables describes the fundamental socio-economic profile of the customers.
 
 \begin{itemize}
-    \item \textbf{Axis 1 (PC1: 37.5\%): Customer Value.} \textit{(Interpretation remains the same)} The positive side (right) is strongly associated with higher \texttt{Income}, higher spending across most categories (especially \texttt{WineExp}, \texttt{MeatExp}, \texttt{CatalogPurc}), and \texttt{CustomerSegment 2}. The negative side (left) corresponds to lower income, lower spending, \texttt{CustomerSegment 1} \& \texttt{3}, and having younger children (\texttt{Kidhome 1}). This axis primarily differentiates customers based on their overall economic value and engagement.
+    \item \textbf{IncomeSegment:} This variable is one of the strongest interpreters of Axis 1 (Customer Value). The \texttt{High} income category is located far to the right (positive on PC1) in Figure \ref{fig:qualitative_map_1_2}, strongly associating it with the high-spending numerical variables (\texttt{Income}, \texttt{WineExp}, \texttt{MeatExp}). Conversely, the \texttt{Low} income category is positioned on the far left (negative on PC1). This confirms that PC1 is a primary axis of economic differentiation. Interestingly, the \texttt{Medium} income category is positioned in the upper half of the plot (positive on PC2), suggesting a link between mid-tier earners and the ``Deal-Seeking Parent of Teens'' profile.
+    
+    \item \textbf{Education:} The education categories are spread across the map. \texttt{Basic} is located far to the left, aligning with the \texttt{Low} income segment and lower overall customer value. \texttt{Graduation} sits near the center, representing the average customer profile. \texttt{PhD} and \texttt{Master} are positioned slightly in the upper half of the plot, suggesting a weak correlation between higher education and the ``Lifestage'' axis (PC2).
+    
+    \item \textbf{MaritalSts:} Most marital status categories (\texttt{Married}, \texttt{Together}, \texttt{Single}) are located near the origin, indicating they are not strong differentiators on their own. The one exception is \texttt{Widow}, which is positioned on the right side of the plot (positive on PC1) and slightly in the lower half (negative on PC2). This aligns perfectly with the ``Established, Traditional Shopper'' who is also a higher-value customer.
+\end{itemize}
+
+\subsubsection{Household Composition}
+
+This group is crucial for understanding the lifestage of the customers, which strongly defines Axis 2.
+
+\begin{itemize}
+    \item \textbf{Kidhome \& HasChildren:} These variables are powerful interpreters of Axis 1. The presence of young children (\texttt{Kidhome 1}, \texttt{HasChildren 1}) is strongly associated with the left side of the plot (negative on PC1), aligning with the low-value customer segment. This suggests that households with young children may have less disposable income for luxury food items. Conversely, \texttt{Kidhome 0} and \texttt{HasChildren 0} are on the right, strongly correlating with the high-value segment.
+    
+    \item \textbf{Teenhome:} This variable is the single strongest interpreter of Axis 2 (Lifestage \& Channel Preference) as seen in Figure \ref{fig:qualitative_map_1_2}. Having one or two teenagers (\texttt{Teenhome 1}, \texttt{Teenhome 2}) places a customer profile firmly in the upper half of the plot (positive on PC2), aligning perfectly with deal-seeking and web purchases. \texttt{Teenhome 0} is located in the bottom half, associated with the more traditional shoppers. This variable shows almost no correlation with the value axis (PC1), indicating that the presence of teens influences how people shop, but not necessarily how much they spend overall.
+\end{itemize}
+
+\subsubsection{Customer Engagement \& Preferences}
+
+This group describes the customers' relationship with the brand and their explicit tastes.
+
+\begin{itemize}
+    \item \textbf{CustomerSegment:} This variable serves as an excellent validation of the PCA. \texttt{Segment 2} is positioned on the far right, perfectly aligning with the high-value characteristics of PC1. \texttt{Segment 1} and \texttt{Segment 3} are on the far left, aligning with the low-value profile. The PCA has successfully rediscovered the underlying patterns that were likely used to create these segments in the first place.
+    
+    \item \textbf{PreferredProductCategory:} The product preferences add nuance to the spending habits. \texttt{WineExp} and \texttt{MeatExp} are positioned on the right (positive on PC1), confirming they are preferred by high-value customers. Other categories like \texttt{FruitExp} and \texttt{SweetExp} are on the left, associated with the lower-value segment.
+    
+    \item \textbf{PreferredChannel:} Channel preference helps define both axes. \texttt{CatalogPurc} is on the right side (positive on PC1) and slightly in the lower half (negative on PC2), strongly profiling the high-value, established shopper. \texttt{DealsPurc} is at the very top of the plot (highly positive on PC2), confirming its association with the ``Parent of Teens'' lifestage. \texttt{WebPurc} is also in the upper half, while \texttt{StorePurc} is close to the center, indicating it is a general channel used by all segments.
+\end{itemize}
+
+Looking at Figure \ref{fig:qualitative_map_1_3}, we can observe additional insights regarding the PC1-PC3 plane. The distribution of qualitative variables along PC3 provides further nuance to our understanding of customer profiles, particularly regarding age and customer tenure relationships.
+
+
+\subsection{Conclusions}
+
+Based on the variable projections, the principal components can be interpreted as follows:
+
+\begin{itemize}
+    \item \textbf{Axis 1 (PC1: 37.5\%): Customer Value.} The positive side (right) is strongly associated with higher \texttt{Income}, higher spending across most categories (especially \texttt{WineExp}, \texttt{MeatExp}, \texttt{CatalogPurc}), and \texttt{CustomerSegment 2}. The negative side (left) corresponds to lower income, lower spending, \texttt{CustomerSegment 1} \& \texttt{3}, and having younger children (\texttt{Kidhome 1}). This axis primarily differentiates customers based on their overall economic value and engagement.
+    
+    \item \textbf{Axis 2 (PC2: 10.6\%): Lifestage \& Channel Preference.} The positive side (top) is strongly characterized by \texttt{DealsPurc} and \texttt{WebPurc}, along with having teenagers at home (\texttt{Teenhome 1}, \texttt{Teenhome 2}). The negative side (bottom) is associated with having no children or teens (\texttt{HasChildren 0}, \texttt{Teenhome 0}) and potentially more traditional purchasing (\texttt{CatalogPurc}). This axis differentiates customers based on their life stage (presence of teens) and their preferred shopping channels and deal sensitivity.
     
     \item \textbf{Axis 3 (PC3: 8.0\%): Customer Maturity \& Tenure.} The positive side (top) is strongly characterized by higher \texttt{Age}. The negative side (bottom) is associated with longer customer tenure (\texttt{CustDays}). This axis appears to differentiate customers based on their age and how long they have been a customer, potentially contrasting older, perhaps newer high-value customers from younger, more established ones.
 \end{itemize}
