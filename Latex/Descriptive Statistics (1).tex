@@ -4,17 +4,20 @@
 \usepackage{pdfpages}
 \usepackage{geometry}
 \geometry{margin=0pt} % quita márgenes
+\usepackage{float}
+
 
 \begin{document}
 
 \foreach \i in {1,...,35}{%
-  \clearpage
-  \thispagestyle{empty} % sin número de página
-  \begin{center}
-    \makebox[\paperwidth][c]{%
-      \includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio]{Imatges/d\i.png}%
-    }
-  \end{center}
+    \clearpage
+    \begingroup
+      \edef\FileName{Imatges/d\i.png}%
+      \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\linewidth]{\FileName}
+      \end{figure}
+    \endgroup
 }
 
 \paragraph{{Final data description}}
