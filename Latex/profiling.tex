@@ -1,127 +1,142 @@
-\raggedright
 \section{Profiling}
 
-texto
-\newline
-
 \subsection{Education}
-Variable Type: Categorical Nominal.\newline
+Variable Type: Categorical Nominal. 
 Recall: the Education variable describes the level of studies the consumer has (2nd cycle, Basic, Graduation, Master, PhD).
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/mean_barplot_TotalExp.png}
+    \includegraphics[width= 1\linewidth]{Imatges/mean_barplot_TotalExp.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_1} % Changed label to be unique
 \end{figure}
-\newline
-With a mean barplot we can see the total expent depending on the level of studies, where it is evident that the basic education group spends much less money on their purchase.
+
+With a mean bar plot we can see the total expend depending on the level of studies, where it is evident that the basic education group spends much less money on their purchase.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_class_MaritalSts_4_legend.png}
+    \includegraphics[width= 1\linewidth]{Imatges/prop_cond_class_MaritalSts_4_legend.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_2} % Changed label to be unique
 \end{figure}
-\newline
-Comparing with the marital status we can see that independently of their studies, the customers usualy are married or together. It is worth noting that those with a basic education level are more often married or single.
+
+Comparing with the marital status we can see that independently of their studies, the customers usually are married or together. It is worth noting that those with a basic education level are more often married or single.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_class_IncomeSegment_4_legend.png}
+    \includegraphics[width= 1\linewidth]{Imatges/prop_cond_class_IncomeSegment_4_legend.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_3} % Changed label to be unique
 \end{figure}
-\newline
+
 Comparing the income segment we can see that the basic level has the highest frequency with low segment. It shows that they are the ones with the lowest incomes, followed by those with a second-level education, and that there is not much difference among the rest.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_class_PreferredProductCategory_4_legend.png}
+    \includegraphics[width= 1\linewidth]{Imatges/prop_cond_class_PreferredProductCategory_4_legend.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_4} % Changed label to be unique
 \end{figure}
-\newline
+
 About their most purchased product category, we can see that as the level of education increases, there is a tendency to spend more on wine, the customers with lower education levels prefer to buy gold, and those with a graduation level education tend to spend on meat.
 
+\newpage
 \subsection{MaritalSts}
-Variable Type: Categorical Nominal.\newline
+Variable Type: Categorical Nominal. 
 Recall: the MaritalSts variable describes the marital status of the customer (Divorced, Married, Single, Together, Widow).
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/mean_barplot_TotalExp(2).png}
+    \includegraphics[width= 1\linewidth]{Imatges/mean_barplot_TotalExp(2).png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_5} % Changed label to be unique
 \end{figure}
-\newline
-With a mean barplot we can see that the total expenditure by marital status is quite uniform, despite widow customers that spends more on average.
+
+With a mean bar plot we can see that the total expenditure by marital status is quite uniform, despite widow customers that spends more on average.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_PreferredProductCategory_10_legend.png}
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_PreferredProductCategory_10_legend.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_6} % Changed label to be unique
 \end{figure}
-\newline
+
 It is interesting to observe that regardless of marital status, the main product is wine, followed by meat.
 
+\newpage
 \subsection{IncomeSegment}
-Variable Type: Numerical Discrete.\newline
-Recall: ...
+Variable Type: Numerical Discrete. 
+Recall: The IncomeSegment variable groups customers into 'Low' (blue), 'Medium' (green), and 'High' (red) income brackets.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_col_var_x_PreferredProductCategory_8_legend.png}
+    \includegraphics[width= 1\linewidth]{Imatges/prop_cond_col_var_x_PreferredProductCategory_8_legend.png}
     \caption{Descripció}
-    \label{fig:scree_plot}
+    \label{fig:scree_plot_7} % Changed label to be unique
 \end{figure}
-\newline
+
 With this graph, it can be observed that the preferred category of customers varies depending on their segment. This shows how different their main interests are when it comes to spending their income.
 
+\newpage
 \subsection{HasChildren}
-Variable Type: Categorical Binary.\newline
-Recall: the HasChildren variable  whether the customer has children or not (0 or 1).
-Variable Type: Numerical Discrete.\newline
+Variable Type: Categorical Binary. 
+Recall: the HasChildren variable whether the customer has children or not (0 or 1).
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend.png}
-    \caption{Descripció}
-    \label{fig:scree_plot}
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend.png}
+    \caption{Income Segment Counts by HasChildren (0 = No, 1 = Yes)}
+    \label{fig:scree_plot_8} % Changed label to be unique
 \end{figure}
-\newline
-In this graph, we can see that our sample has more consumers with children than without them, and the most consumers with children have a medium or low income status. On the other hand, those without children have a higher status.
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_class_var_x_PreferredProductCategory_6_legend.png}
-    \caption{Description }
-    \label{fig:scree_plot}
-\end{figure}
-\newline
-Regardless of whether they have children or not, the preferred category does not vary among consumers.
 
+This stacked bar chart provides a clear breakdown of income segments based on whether the customer has children (assuming '0' is No Children and '1' is Has Children).
 
-\subsection{PrefereredChannel}
-Variable Type: Categorical Nominal.\newline
-Recall: the PrefereredChannel variable describes the channel with highest frequency.
+The 'No Children' segment (bar '0') is the larger group overall (approx. 1150 customers) and is dominated by \textbf{High-income consumers} (red, approx. 630 counts), followed by Low-income (blue, approx. 370).
+
+The 'Has Children' segment (bar '1') is smaller (approx. 820 customers) and is overwhelmingly composed of \textbf{Medium-income} (green, approx. 520) and \textbf{Low-income} (blue, approx. 250) consumers, with a very small High-income group (red).
+
+This strongly suggests that having children is correlated with being in the Medium or Low income brackets, while not having children is associated with the High-income segment.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(channel).png}
-    \caption{Description }
-    \label{fig:scree_plot}
+    \includegraphics[width= 1\linewidth]{Imatges/prop_cond_class_var_x_PreferredProductCategory_6_legend.png}
+    \caption{Proportional Preference by Product Category}
+    \label{fig:scree_plot_9} % Changed label to be unique
 \end{figure}
-\newline
-In this graph, we can observe the relationships between the preferred channel and income status. It can be seen that the vast majority prefer to shop in-store. However, it is worth noting that those with a medium status mainly shop online, those with a high status mainly shop via catalog, and those with a low status mainly shop based on promotions.
 
+This line plot shows that product preference is \textbf{not affected} by having children. The preference proportions for customers with 'No Children' (red line, '0') and 'Has Children' (cyan line, '1') are nearly identical. Both groups overwhelmingly prefer \textbf{Wine}, with a secondary, smaller preference for \textbf{Meat}. All other categories show very low preference proportions for both segments.
 
-\subsection{PrefereredProductCategory}
-Variable Type: Categorical Nominal.\newline
-Recall: the PrefereredProductCategory variable describes the channel with highest frequency.
+\newpage
+\subsection{PreferredChannel}
+Variable Type: Categorical Nominal. 
+Recall: the PreferredChannel variable describes the channel with highest frequency.
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(category).png}
-    \caption{Description }
-    \label{fig:scree_plot}
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(channel).png}
+    \caption{Preferred Channel by Income Segment}
+    \label{fig:scree_plot_10} % Changed label to be unique
 \end{figure}
-\newline
-Surprisingly, regardless of income status, the most preferred category is wine (although there is a much bigger difference between high and medium status compared to low). It is also important to note that the other less preferred categories are usually dominated by the low-income group.
+
+This graph clearly shows that \textbf{'StorePurc'} (In-Store) is the most common preferred channel by a large margin, utilized heavily by all income segments. The other channels, however, reveal strong income-based preferences:
+\begin{itemize}
+    \item \textbf{CatalogPurc:} This is almost exclusively a \textbf{High-income} (red) channel.
+    \item \textbf{DealsPurc:} This channel is dominated by \textbf{Low-income} (blue) and \textbf{Medium-income} (green) shoppers, with almost no participation from the High-income segment.
+    \item \textbf{WebPurc:} Online shopping is also most popular with the \textbf{Low-income} (blue) segment, followed closely by the Medium-income (green) segment. The High-income segment shows the least preference for this channel.
+\end{itemize}
+
+\newpage
+\subsection{PreferredProductCategory}
+Variable Type: Categorical Nominal. 
+Recall: the PreferredProductCategory variable describes the category with highest frequency.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(category).png}
+    \caption{Preferred Product Category by Income Segment}
+    \label{fig:scree_plot_11} % Changed label to be unique
+\end{figure}
+
+This chart illustrates preferred product categories, broken down by income segment. 
+\begin{itemize}
+    \item \textbf{WineExp:} This is overwhelmingly the most preferred category across all segments, as shown by the towering bar. The largest single group of wine consumers by count is the \textbf{Low-income segment} (blue, approx. 500 counts), followed by the High-income segment (red, approx. 490 counts), and then the Medium-income segment (green, approx. 300 counts).
+    \item \textbf{MeatExp:} This is the second most popular category. It is clearly dominated by the \textbf{High-income segment} (red).
+    \item \textbf{Other Categories:} The remaining, less-preferred categories ('FishExp', 'FruitExp', 'GoldExp', 'SweetExp') are predominantly preferred by \textbf{Low-income} (blue) and \textbf{Medium-income} (green) consumers.
+\end{itemize}
