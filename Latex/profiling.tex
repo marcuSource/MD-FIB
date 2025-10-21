@@ -6,6 +6,23 @@ Recall: the Education variable describes the level of studies the consumer has (
 
 \begin{figure}[H]
     \centering
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(education).png}
+    \caption{Descripció}
+    \label{fig:scree_plot_1} % Changed label to be unique
+\end{figure}
+
+This graph shows that most of the data comes from graduate consumers, while those with a basic education level are scarce. It also illustrates the income status for each education level, highlighting that the basic level stands out as the only one not evenly distributed.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_MaritalSts_10_legend(education).png}
+    \caption{Descripció}
+    \label{fig:scree_plot_1} % Changed label to be unique
+\end{figure}
+
+If we look at it according to marital status, we realize that most are married or in a relationship.
+
+\begin{figure}[H]
+    \centering
     \includegraphics[width= 1\linewidth]{Imatges/mean_barplot_TotalExp.png}
     \caption{Descripció}
     \label{fig:scree_plot_1} % Changed label to be unique
@@ -45,6 +62,15 @@ Recall: the MaritalSts variable describes the marital status of the customer (Di
 
 \begin{figure}[H]
     \centering
+    \includegraphics[width= 1\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(marital).png}
+    \caption{Descripció}
+    \label{fig:scree_plot_5} % Changed label to be unique
+\end{figure}
+
+With this graph, we can see that income level is fairly consistent, so it does not seem to influence marital status.
+
+\begin{figure}[H]
+    \centering
     \includegraphics[width= 1\linewidth]{Imatges/mean_barplot_TotalExp(2).png}
     \caption{Descripció}
     \label{fig:scree_plot_5} % Changed label to be unique
@@ -65,6 +91,16 @@ It is interesting to observe that regardless of marital status, the main product
 \subsection{IncomeSegment}
 Variable Type: Numerical Discrete. 
 Recall: The IncomeSegment variable groups customers into 'Low' (blue), 'Medium' (green), and 'High' (red) income brackets.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width= 1\linewidth]{Imatges/grouped_barplot_counts_Education_12_legend(income).png}
+    \caption{Descripció}
+    \label{fig:scree_plot_7} % Changed label to be unique
+\end{figure}
+
+In this graph, we can observe in more detail the education levels that make up each income status. We can see that consumers are distributed in roughly the same proportion across the three cases; however, the basic level stands out because it only appears in the low-income status.
+
 
 \begin{figure}[H]
     \centering
@@ -140,3 +176,31 @@ This chart illustrates preferred product categories, broken down by income segme
     \item \textbf{MeatExp:} This is the second most popular category. It is clearly dominated by the \textbf{High-income segment} (red).
     \item \textbf{Other Categories:} The remaining, less-preferred categories ('FishExp', 'FruitExp', 'GoldExp', 'SweetExp') are predominantly preferred by \textbf{Low-income} (blue) and \textbf{Medium-income} (green) consumers.
 \end{itemize}
+
+\newpage
+\subsection{Conclusions}
+After profiling some variables and comparing them with the clusters, we have concluded that our variables can be distributed similarly to the three main clusters.
+
+The first cluster would represent the minority customers:
+Cluster 1: Low-value customers
+This group includes consumers with low or lower-middle incomes, limited education (basic or second-cycle), and children. They have more rational and restricted consumption habits, so their main purchases vary. This cluster prefers shopping through promotions or in-store.
+
+In summary, this cluster consists of consumers with lower purchasing power, clearly oriented toward saving and seeking promotions. Their behavior reflects high price sensitivity and low brand loyalty. The most effective marketing strategies should focus on periodic promotions, engaging digital campaigns, and loyalty programs with points or discounts that encourage repeat purchases.
+
+The second cluster represents intermediate consumers:
+Cluster 2 – Mid-value customers
+These consumers are characterized by having medium incomes and medium to high education levels (Graduation or Master’s). This group maintains a balance between purchase frequency and value, prefers shopping in-store or online, and their most frequently purchased products are wine and meat.
+
+In summary, this segment shows greater stability and willingness to engage with the brand compared to Cluster 1. It represents a strategic group for loyalty and multi-channel marketing actions, as it combines digital habits with trust in the physical shopping experience. Personalized campaigns or segmented discounts can significantly increase their average value.
+
+Finally, the third cluster concentrates the High-value customers
+Cluster 3 – High-value customers
+These consumers stand out for their high income levels and advanced education (Master’s or PhD). They are mostly individuals without children, which allows them to spend more on purchases. This group prefers to shop mainly in-store or through catalogs, and their most frequently purchased product is wine.
+
+In summary, Cluster 3 represents the most profitable customers for the company. They show consistent purchasing habits, lower price sensitivity, and a preference for personalized experiences. This makes them the top priority for retention strategies and premium loyalty programs. The most effective actions are those that strengthen their connection with the brand, such as exclusive benefits, catalog offers, and direct, personalized communication.
+
+To summarize, our database contains information on three types of customers. To maximize the potential benefit from each, we should design personalized offers with different objectives:
+
+Cluster 1: Focus acquisition strategies on competitive pricing and digital promotions.
+Cluster 2: Strengthen loyalty and multi-channel personalization.
+Cluster 3: Reinforce the connection through premium experiences and exclusive services.
