@@ -23,6 +23,7 @@
 \usepackage{pgfgantt}
 \usepackage{parskip}
 
+
 % Page geometry
 \geometry{
     top=2.5cm,
@@ -44,9 +45,8 @@
 \definecolor{JesusGreen}{HTML}{27ae60}
 \definecolor{ArnauPurple}{HTML}{9b59b6}
 \definecolor{MarcBlue}{HTML}{2980b9}
-\definecolor{AglayaOrange}{HTML}{e67e22}
 \definecolor{MichelRed}{HTML}{e74c3c}
-\definecolor{SharedBlue}{HTML}{2980b9}
+\definecolor{SharedOrange}{HTML}{FFA500}
 
 % Hyperlink setup
 \hypersetup{
@@ -77,7 +77,7 @@
 
 % Section title formatting
 \titleformat{\section}
-{\Large\bfseries\color{primaryblue}}
+{\Large\bfseries\color{primaryblue}\raggedright}
 {\thesection}
 {1em}
 {}
@@ -130,6 +130,7 @@
 \author{}
 \date{}
 
+
 \begin{document}
 
 % Custom title page
@@ -137,7 +138,6 @@
 \begin{center}
 
 % Top spacing
-\vspace*{2cm}
 
 % Main title with decorative elements
 {\color{primaryblue}\rule{\textwidth}{2pt}}
@@ -230,33 +230,37 @@ The dataset used in this project was obtained from Kaggle, an online platform fo
 % JESUS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\include{metadata.tex}
-
-
-\newpage
-\include{preprocessing.tex}
+\input{metadata.tex}
 
 
 % ARNAU
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\include{descriptive.tex}
+\input{descriptive.tex}
 
 % MARC
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\include{pca.tex}
+\input{pca.tex}
+
+\newpage
+\input{clustering.tex}
 
 % MICHEL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\include{clustering.tex}
+\input{profiling.tex}
 
 
 % MARC
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-%\include{gant.tex}
+\input{conclusions.tex}
 
+
+% MARC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\input{gant.tex}
 
 \end{document}
