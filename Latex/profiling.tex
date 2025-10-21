@@ -77,40 +77,51 @@ Recall: ...
 \newline
 With this graph, it can be observed that the preferred category of customers varies depending on their segment. This shows how different their main interests are when it comes to spending their income.
 
-\subsection{Kidhome}
-Variable Type: Numerical Discrete.\newline
-Recall: the Kidhome variable describes the number of small children in the customer's household (0 - 5).
-\subsection{Teenhome}
-Variable Type: Numerical Discrete.\newline
-Recall: the Teenhome variable describes the number of teenagers in the customer's household (0 - 5).
-\subsection{Response}
-Variable Type: Categorical Binary.\newline
-Recall: the Response variable describes whether the customer accepted the offer in the last campaign (0 or 1).
-\subsection{Complain}
-Variable Type: Categorical Binary.\newline
-Recall: the Complain variable describes whether the customer has filed a complaint in the last 2 years (0 or 1).
 \subsection{HasChildren}
 Variable Type: Categorical Binary.\newline
 Recall: the HasChildren variable  whether the customer has children or not (0 or 1).
+Variable Type: Numerical Discrete.\newline
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend.png}
+    \caption{Descripció}
+    \label{fig:scree_plot}
+\end{figure}
+\newline
+In this graph, we can see that our sample has more consumers with children than without them, and the most consumers with children have a medium or low income status. On the other hand, those without children have a higher status.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Imatges/prop_cond_class_var_x_PreferredProductCategory_6_legend.png}
+    \caption{Description }
+    \label{fig:scree_plot}
+\end{figure}
+\newline
+Regardless of whether they have children or not, the preferred category does not vary among consumers.
+
 
 \subsection{PrefereredChannel}
 Variable Type: Categorical Nominal.\newline
 Recall: the PrefereredChannel variable describes the channel with highest frequency.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(channel).png}
+    \caption{Description }
+    \label{fig:scree_plot}
+\end{figure}
+\newline
+In this graph, we can observe the relationships between the preferred channel and income status. It can be seen that the vast majority prefer to shop in-store. However, it is worth noting that those with a medium status mainly shop online, those with a high status mainly shop via catalog, and those with a low status mainly shop based on promotions.
+
+
 \subsection{PrefereredProductCategory}
 Variable Type: Categorical Nominal.\newline
 Recall: the PrefereredProductCategory variable describes the channel with highest frequency.
-\subsection{AccCmp1}
-Variable Type: Numerical Discrete.\newline
-Recall: 
-\subsection{AccCmp2}
-Variable Type: Numerical Discrete.\newline
-Recall: 
-\subsection{AccCmp3}
-Variable Type: Numerical Discrete.\newline
-Recall: 
-\subsection{AccCmp4}
-Variable Type: Numerical Discrete.\newline
-Recall: 
-\subsection{AccCmp5}
-Variable Type: Numerical Discrete.\newline
-Recall: 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Imatges/stacked_barplot_counts_IncomeSegment_10_legend(category).png}
+    \caption{Description }
+    \label{fig:scree_plot}
+\end{figure}
+\newline
+Surprisingly, regardless of income status, the most preferred category is wine (although there is a much bigger difference between high and medium status compared to low). It is also important to note that the other less preferred categories are usually dominated by the low-income group.
