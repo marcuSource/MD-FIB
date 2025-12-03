@@ -1,0 +1,126 @@
+---
+title: "Decision Trees iFood"
+author: "iFood Marketing Analytics"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+  toc: true
+toc_float: true
+toc_depth: 3
+theme: united
+highlight: tango
+code_folding: show
+pdf_document: default
+---
+  
+# Global knitr configuration for the R Markdown document:
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = TRUE,
+  fig.width = 10,
+  fig.height = 7
+)
+```
+
+```{r}
+#Libraries
+library(readr)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(caret)
+```
+
+```{r}
+#Load the dataset
+data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
+#Normalize column names to be syntactically valid in R.
+names(data) <- make.names(names(data))
+#Variable Conversion: Convert the target variable ('CustomerSegment') to a factor.
+data <- data %>% mutate(CustomerSegment = as.factor(CustomerSegment))
+#NA Imputation: Replace missing values (NA) in 'Income' with the median.
+data$Income[is.na(data$Income)] <- median(data$Income, na.rm = TRUE)
+
+# Select all variables to be used as predictors.
+df_model <- data %>%
+  select(
+    CustomerSegment, 
+    Income, Age, Recency,
+    WineExp, MeatExp, FishExp, SweetExp, FruitExp, GoldExp, TotalExp,
+    TotalPurchases, DealsPurc, WebPurc, CatalogPurc, StorePurc,
+    Kidhome, Teenhome, Education, MaritalSts, 
+    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain, Response,
+    CustomerTenure, CampaignAcceptanceRate, PropensityScore, EngagementIndex
+  ) %>%
+  # Remove any rows with remaining NAs in the selected columns.
+  na.omit()
+```
+
+```{r}
+#Set a seed for reproducibility of the random partition.
+set.seed(42)
+#Create indices for stratified partitioning (70% for training).
+index <- createDataPartition(df_model$CustomerSegment, p = 0.7, list = FALSE)
+#Training set (70%).
+train_data <- df_model[index, ]
+#Testing set (remaining 30%).
+test_data  <- df_model[-index, ]
+```
+
+```{r}
+#Training the Initial (Fully Grown) Decision Tree
+#cp = 0: Sets the Complexity Parameter to zero to grow the tree to its maximum possible size.
+#xval = 10: Performs 10-fold cross-validation to estimate error and find the optimal CP for pruning.
+tree_fit <- rpart(
+  CustomerSegment ~ .,
+  data = train_data,
+  method = "class",
+  control = rpart.control(cp = 0, xval = 10)
+)
+```
+
+```{r}
+#Display the Complexity Parameter (CP) table showing cross-validation error ('xerror') for different CPs.
+printcp(tree_fit)
+
+#Determine the Optimal CP: Find the index that minimizes the cross-validation error.
+best_cp_index <- which.min(tree_fit$cptable[, "xerror"])
+best_cp <- tree_fit$cptable[best_cp_index, "CP"]
+
+#Prune the tree: Use the optimal CP to simplify the model and improve generalization (avoid overfitting).
+pruned_tree <- prune(tree_fit, cp = best_cp)
+```
+
+```{r}
+#Display a vector showing the relative importance of each predictor variable.
+print(pruned_tree$variable.importance)
+
+#Generate the plot of the pruned tree.
+rpart.plot(pruned_tree,
+           main = paste("Árbol Podado (CP =", round(best_cp, 5), ")"),
+           type = 4,
+           extra = 101,
+           branch.lty = 3,
+           nn = TRUE,
+           cex = 0.7,
+           fallen.leaves = TRUE)
+```
+
+```{r}
+#Generate class predictions on the test set.
+test_predictions <- predict(pruned_tree, test_data, type = "class")
+
+#Create the Confusion Matrix, comparing predictions vs. actual values.
+cm <- confusionMatrix(test_predictions, test_data$CustomerSegment)
+
+#Display detailed results.
+cm
+print(pruned_tree)
+
+#Print key metrics.
+cat("\nCP Óptimo:", best_cp)
+cat("\nAccuracy:", cm$overall["Accuracy"], "\n")
+```
