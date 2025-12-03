@@ -34,6 +34,7 @@ library(rpart.plot)
 library(caret)
 ```
 
+#1.Data Loading and Preparation
 ```{r}
 #Load the dataset
 data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
@@ -59,6 +60,7 @@ df_model <- data %>%
   na.omit()
 ```
 
+#2.Data Splitting
 ```{r}
 #Set a seed for reproducibility of the random partition.
 set.seed(42)
@@ -70,6 +72,7 @@ train_data <- df_model[index, ]
 test_data  <- df_model[-index, ]
 ```
 
+#2.Initial Tree Training
 ```{r}
 #Training the Initial (Fully Grown) Decision Tree
 #cp = 0: Sets the Complexity Parameter to zero to grow the tree to its maximum possible size.
@@ -82,6 +85,7 @@ tree_fit <- rpart(
 )
 ```
 
+#3.Optimizing and prunning
 ```{r}
 #Display the Complexity Parameter (CP) table showing cross-validation error ('xerror') for different CPs.
 printcp(tree_fit)
@@ -94,6 +98,7 @@ best_cp <- tree_fit$cptable[best_cp_index, "CP"]
 pruned_tree <- prune(tree_fit, cp = best_cp)
 ```
 
+#4.Visualization and variable importance
 ```{r}
 #Display a vector showing the relative importance of each predictor variable.
 print(pruned_tree$variable.importance)
@@ -109,6 +114,7 @@ rpart.plot(pruned_tree,
            fallen.leaves = TRUE)
 ```
 
+#5.Model Evaluation
 ```{r}
 #Generate class predictions on the test set.
 test_predictions <- predict(pruned_tree, test_data, type = "class")
