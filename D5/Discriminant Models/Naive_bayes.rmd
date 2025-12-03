@@ -1,0 +1,148 @@
+---
+title: "Naive iFood"
+author: "iFood Marketing Analytics"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+  toc: true
+toc_float: true
+toc_depth: 3
+theme: united
+highlight: tango
+code_folding: show
+pdf_document: default
+---
+  
+# Global knitr configuration for the R Markdown document:
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = TRUE,
+  fig.width = 10,
+  fig.height = 7
+)
+```
+# This script implements and evaluates the Naive Bayes classifier 
+# to predict the CustomerSegment (cluster membership).
+
+```{r}
+library(readr)
+library(dplyr)
+library(naivebayes) # For the Naive Bayes algorithm
+library(caret)      # For the createDataPartition and confusionMatrix functions
+```
+
+#1.Setup and data preparation
+```{r}
+# Load dataset (assuming comma delimiter ",")
+data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
+
+# Column name cleaning
+names(data) <- make.names(names(data))
+
+# Impute missing values (NA) in 'Income' with the median
+data$Income[is.na(data$Income)] <- median(data$Income, na.rm = TRUE)
+
+# Convert the target variable 'CustomerSegment' to a factor
+data <- data %>%
+  mutate(CustomerSegment = as.factor(CustomerSegment))
+
+# Select only necessary columns and remove remaining NAs
+# We exclude derived variables that might violate the Naive Bayes independence assumption.
+dd_model <- data %>%
+  select(
+    CustomerSegment, 
+    Income, Age, Recency,
+    WineExp, MeatExp, FishExp, SweetExp, GoldExp, TotalExp,
+    TotalPurchases, DealsPurc, WebPurc, CatalogPurc, StorePurc,
+    Kidhome, Teenhome, Education, MaritalSts, 
+    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain, Response
+  ) %>%
+  na.omit()
+```
+
+#2.Data Splitting
+```{r}
+set.seed(42) # For reproducibility
+# Create stratified partition for the test set (30%)
+test_index <- createDataPartition(dd_model$CustomerSegment, p = 0.3, list = FALSE)
+dataTrain <- dd_model[-test_index,]
+dataTest <- dd_model[test_index,]
+
+cat("Training Set:", nrow(dataTrain), "observations.\n")
+cat("Test Set:", nrow(dataTest), "observations.\n")
+```
+
+#3.Standard Naive Bayes Model
+```{r}
+# Train the Naive Bayes model
+# Assumes normal distribution for numerical variables (Gaussian)
+nb_standard <- naive_bayes(CustomerSegment ~ ., data = dataTrain)
+
+# Prediction on the test set
+pred_standard <- predict(nb_standard, dataTest)
+
+# Evaluation: Confusion Matrix
+cat("\n--- Confusion Matrix (Standard Model) ---\n")
+conf_matrix_std <- confusionMatrix(pred_standard, dataTest$CustomerSegment)
+print(conf_matrix_std)
+cat("\nStandard Accuracy:", round(conf_matrix_std$overall["Accuracy"] * 100, 2), "%\n")
+
+# Visualization (Example of a key variable's distribution)
+cat("\nVisualization of Wine Expense distribution (Standard Model):\n")
+plot(nb_standard, legend=T, which="WineExp")
+# 
+```
+
+#4.Naive Bayes with Kernel Density Estimation
+```{r}
+# Train the Kernel model (usekernel = TRUE for more flexible distribution)
+nb_kernel <- naive_bayes(x = dataTrain %>% select(-CustomerSegment), 
+                           y = dataTrain$CustomerSegment, 
+                           usekernel = TRUE)
+
+# Prediction on the test set
+pred_kernel <- predict(nb_kernel, dataTest)
+
+# Evaluation: Confusion Matrix
+cat("\n--- Confusion Matrix (Kernel Model) ---\n")
+conf_matrix_ker <- confusionMatrix(pred_kernel, dataTest$CustomerSegment)
+print(conf_matrix_ker)
+cat("\nKernel Accuracy:", round(conf_matrix_ker$overall["Accuracy"] * 100, 2), "%\n")
+
+# Visualization (Example of a key variable's distribution)
+cat("\nVisualization of Recency distribution (Kernel Model):\n")
+plot(nb_kernel, legend=T, which="Recency")
+```
+
+#Final Conclusions
+```{r}
+# --- CRITICAL PERFORMANCE ANALYSIS ---
+# The Naive Bayes (NB) classifier demonstrates high effectiveness in identifying 
+# Clusters 1 and 2 (Accuracy > 90%), but exhibits a significant structural 
+# weakness in classifying Cluster 3.
+
+# ## Failure in Class 3 Detection
+# The Sensitivity value of 50% for Class 3 is the most important 
+# and concerning metric. This indicates that half of the customers who truly 
+# belong to this segment were incorrectly classified into other categories 
+# (False Negatives), most likely Class 2.
+
+# ## Implication of the Kernel Model
+# The use of the Kernel Model (KDE) did not fix the poor performance in Class 3. 
+# This confirms that the issue is structural: a violation of the Naive Bayes' 
+# independence assumption. 
+
+# Cluster 3 is defined by the interaction and collinearity of multiple 
+# variables, which is precisely what 
+# the Naive Bayes model ignores. 
+
+# ## Final Recommendation (vs. Decision Tree)
+# The results confirm that the Decision Tree (CART), despite being more 
+# complex, is the superior and recommended model for this segmentation. 
+# CART was able to capture the necessary conditional rules and interactions 
+# to isolate Cluster 3 with a Sensitivity near 97%, achieving a faithful and 
+# accurate representation of the segmentation structure.
+```
