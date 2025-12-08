@@ -1,1 +1,111 @@
-\section{Support Vector Machine}
+\section{Support Vector Machines (SVM)}
+
+Support Vector Machines (SVM) were applied to perform both classification (binary and multi-class) and regression tasks. The analysis was conducted using the \texttt{e1071} package in R, utilizing the Radial Basis Function (RBF) kernel, which is effective for capturing non-linear relationships in the marketing data.
+
+\subsection{Data Preparation for SVM}
+SVMs are sensitive to the scale of the data and the presence of categorical variables. The following preprocessing steps were applied:
+\begin{itemize}
+    \item \textbf{Factor Conversion:} Categorical variables such as \textit{Education}, \textit{MaritalSts}, and \textit{CustomerSegment} were converted to factors.
+    \item \textbf{Data Leakage Prevention:} Variables that directly predict the outcome or were derived from it (e.g., \textit{PropensityScore}, \textit{EngagementIndex}, and \textit{CustomerSegment} for the binary task) were removed to ensure a realistic predictive model.
+    \item \textbf{Scaling:} The SVM algorithm automatically scaled numeric variables to zero mean and unit variance.
+\end{itemize}
+
+\subsection{Binary Classification: Campaign Response}
+The primary goal was to predict whether a customer would accept the marketing campaign (\textit{Response} = 1).
+
+\subsubsection{Methodology}
+The dataset presents a significant class imbalance, with a minority of customers accepting the offer. To address this:
+\begin{enumerate}
+    \item \textbf{Class Weights:} We calculated a weight ratio of approximately 5.42, assigning higher penalty to misclassifying positive responses.
+    \item \textbf{Hyperparameter Tuning:} A grid search was performed to optimize the \textit{cost} and \textit{gamma} parameters.
+\end{enumerate}
+
+The optimal parameters found were \textbf{Cost = 100} and \textbf{Gamma = 0.01}.
+
+\subsubsection{Results}
+The model achieved an overall accuracy of \textbf{84.79\%}. Crucially, due to the class weighting strategy, the model achieved a \textbf{Sensitivity of 61\%}. This indicates that the model successfully identified 61 out of 100 actual buyers, which is a significant improvement over a non-weighted baseline.
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix (Binary Classification)}
+\label{tab:svm_binary_confusion}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+& & \multicolumn{2}{c}{\textbf{Actual Class}} \\
+& & No (0) & Yes (1) \\ \midrule
+\textbf{Predicted} & No (0) & 513 & 39 \\
+\textbf{Class} & Yes (1) & 64 & 61 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+The Multidimensional Scaling (MDS) plot below visualizes the decision boundaries. Despite the significant overlap between classes in the 2D projection, the SVM effectively captures the positive cases (green) using non-linear boundaries.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Imatges/plot_mds-1.png} % Ensure this image exists
+    \caption{SVM Classification Visualization (MDS Projection)}
+    \label{fig:svm_mds}
+\end{figure}
+
+The ROC Curve confirms the model's performance, showing a good trade-off between the True Positive Rate and the False Positive Rate.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Imatges/plot_roc-1.png} % Ensure this image exists
+    \caption{ROC Curve for SVM Binary Classification}
+    \label{fig:svm_roc}
+\end{figure}
+
+\subsection{Multi-class Classification: Customer Segment}
+We also trained an SVM to predict the \textit{CustomerSegment} (classes 1, 2, or 3). The variables used excluded the campaign response to simulate a segmentation task before a campaign launch.
+
+\subsubsection{Results}
+The model performed exceptionally well with an \textbf{Error Rate of only 3.84\%}. This suggests that the customer segments are distinct and well-defined by the underlying behavioral features.
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix (Customer Segment)}
+\label{tab:svm_multi_confusion}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{Actual Segment}} \\
+\textbf{Predicted} & Seg 1 & Seg 2 & Seg 3 \\ \midrule
+Seg 1 & 177 & 6 & 5 \\
+Seg 2 & 3 & 268 & 6 \\
+Seg 3 & 5 & 1 & 206 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Regression: Income Prediction}
+Finally, an SVM regression model was developed to estimate the \textit{Income} of customers. The linear scale model outperformed the logarithmic transformation in our tests.
+
+\subsubsection{Results}
+The regression model achieved an \textbf{$R^2$ of 0.8084}, explaining approximately 81\% of the variance in customer income. The Root Mean Squared Error (RMSE) was \textbf{9,281.89}, representing the average deviation in monetary units.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Imatges/plot_residuals-1.png} % Ensure this image exists
+    \caption{Income Prediction: Predicted vs Real and Residuals}
+    \label{fig:svm_residuals}
+\end{figure}
+
+The residual analysis (Fig. \ref{fig:svm_residuals}) shows that the model is highly accurate for low and medium incomes but tends to underestimate very high incomes (outliers).
+
+\subsection{Business Interpretation}
+To understand the drivers behind the SVM's decisions, we analyzed the relationship between key features and the campaign response.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Imatges/plot_boxplots-1.png} % Ensure this image exists
+    \caption{Key Drivers: Income and Recency vs Response}
+    \label{fig:svm_boxplots}
+\end{figure}
+
+As shown in Figure \ref{fig:svm_boxplots}:
+\begin{itemize}
+    \item \textbf{Income:} Customers who accepted the offer (Response=1) generally have higher median incomes.
+    \item \textbf{Recency:} There is a strong relationship with recency; customers who have purchased more recently (lower Recency value) are more likely to accept the campaign.
+\end{itemize}
+
+\subsubsection{Conclusion on SVM}
+The Support Vector Machine proved to be a robust algorithm for this dataset. By carefully tuning hyperparameters and applying class weights, we overcame the class imbalance problem to produce a binary classifier that captures 61\% of potential buyers while maintaining high overall accuracy. Furthermore, the algorithm showed near-perfect performance in segment classification and strong predictive power for income estimation.
