@@ -36,7 +36,7 @@ library(caret)      # For the createDataPartition and confusionMatrix functions
 
 #1.Setup and data preparation
 ```{r}
-# Load dataset (assuming comma delimiter ",")
+# Load dataset
 data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
 
 # Column name cleaning
@@ -45,31 +45,37 @@ names(data) <- make.names(names(data))
 # Impute missing values (NA) in 'Income' with the median
 data$Income[is.na(data$Income)] <- median(data$Income, na.rm = TRUE)
 
-# Convert the target variable 'CustomerSegment' to a factor
-data <- data %>%
-  mutate(CustomerSegment = as.factor(CustomerSegment))
-
-# Select only necessary columns and remove remaining NAs
-# We exclude derived variables that might violate the Naive Bayes independence assumption.
+# Variable Selection
+# We remove 'CustomerSegment' to focus purely on the binary Response
 dd_model <- data %>%
   select(
-    CustomerSegment, 
+    Response, 
     Income, Age, Recency,
     WineExp, MeatExp, FishExp, SweetExp, GoldExp, TotalExp,
     TotalPurchases, DealsPurc, WebPurc, CatalogPurc, StorePurc,
     Kidhome, Teenhome, Education, MaritalSts, 
-    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain, Response
+    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain,
+    EngagementIndex, PropensityScore
   ) %>%
   na.omit()
+
+# CRITICAL STEP: Convert target to Factor with readable labels
+# 0 -> "No", 1 -> "Yes"
+dd_model$Response <- factor(dd_model$Response, 
+                            levels = c(0, 1), 
+                            labels = c("No", "Yes"))
 ```
 
 #2.Data Splitting
 ```{r}
 set.seed(42) # For reproducibility
-# Create stratified partition for the test set (30%)
-test_index <- createDataPartition(dd_model$CustomerSegment, p = 0.3, list = FALSE)
-dataTrain <- dd_model[-test_index,]
-dataTest <- dd_model[test_index,]
+
+# Create stratified partition (70% Train, 30% Test)
+# We use p=0.7 to generate the Training Index
+train_index <- createDataPartition(dd_model$Response, p = 0.7, list = FALSE)
+
+dataTrain <- dd_model[train_index,]
+dataTest  <- dd_model[-train_index,]
 
 cat("Training Set:", nrow(dataTrain), "observations.\n")
 cat("Test Set:", nrow(dataTest), "observations.\n")
@@ -78,71 +84,74 @@ cat("Test Set:", nrow(dataTest), "observations.\n")
 #3.Standard Naive Bayes Model
 ```{r}
 # Train the Naive Bayes model
-# Assumes normal distribution for numerical variables (Gaussian)
-nb_standard <- naive_bayes(CustomerSegment ~ ., data = dataTrain)
+# Assumes normal distribution (Bell curve) for numerical variables
+nb_standard <- naive_bayes(Response ~ ., data = dataTrain, laplace = 1)
 
 # Prediction on the test set
 pred_standard <- predict(nb_standard, dataTest)
 
 # Evaluation: Confusion Matrix
-cat("\n--- Confusion Matrix (Standard Model) ---\n")
-conf_matrix_std <- confusionMatrix(pred_standard, dataTest$CustomerSegment)
+cat("\n--- Confusion Matrix (Standard Gaussian Model) ---\n")
+# We specify positive="Yes" to ensure Sensitivity is calculated for buyers
+conf_matrix_std <- confusionMatrix(pred_standard, dataTest$Response, positive = "Yes")
 print(conf_matrix_std)
-cat("\nStandard Accuracy:", round(conf_matrix_std$overall["Accuracy"] * 100, 2), "%\n")
-
-# Visualization (Example of a key variable's distribution)
-cat("\nVisualization of Wine Expense distribution (Standard Model):\n")
-plot(nb_standard, legend=T, which="WineExp")
-# 
 ```
 
 #4.Naive Bayes with Kernel Density Estimation
 ```{r}
-# Train the Kernel model (usekernel = TRUE for more flexible distribution)
-nb_kernel <- naive_bayes(x = dataTrain %>% select(-CustomerSegment), 
-                           y = dataTrain$CustomerSegment, 
-                           usekernel = TRUE)
+# Train the Kernel model (usekernel = TRUE)
+# This allows the model to fit "weird" shapes of data distributions, 
+# not just bell curves. It is usually more accurate for real-world data.
+
+nb_kernel <- naive_bayes(x = dataTrain %>% select(-Response), 
+                         y = dataTrain$Response, 
+                         usekernel = TRUE)
 
 # Prediction on the test set
 pred_kernel <- predict(nb_kernel, dataTest)
 
 # Evaluation: Confusion Matrix
-cat("\n--- Confusion Matrix (Kernel Model) ---\n")
-conf_matrix_ker <- confusionMatrix(pred_kernel, dataTest$CustomerSegment)
+cat("\n--- Confusion Matrix (Kernel Density Model) ---\n")
+conf_matrix_ker <- confusionMatrix(pred_kernel, dataTest$Response, positive = "Yes")
 print(conf_matrix_ker)
-cat("\nKernel Accuracy:", round(conf_matrix_ker$overall["Accuracy"] * 100, 2), "%\n")
+```
 
-# Visualization (Example of a key variable's distribution)
-cat("\nVisualization of Recency distribution (Kernel Model):\n")
-plot(nb_kernel, legend=T, which="Recency")
+#5.Visualization
+```{r}
+# Naive Bayes works by comparing probability distributions.
+# Let's visualize how the model distinguishes Buyers vs Non-Buyers 
+# based on the most important variable: EngagementIndex.
+
+# We use the built-in plot method for naive_bayes objects
+# It shows the "Density" of Yes (Blue) vs No (Red)
+
+cat("\nVisualizing how the model separates customers based on Engagement:\n")
+plot(nb_kernel, legend.box = TRUE, which = "EngagementIndex", arg.num = list(col = c("red", "blue"), main = "Engagement Index: Buyers (Blue) vs Non-Buyers (Red)"))
+
+cat("\nVisualizing how the model separates customers based on Total Expenses:\n")
+plot(nb_kernel, legend.box = TRUE, which = "TotalExp", arg.num = list(col = c("red", "blue"), main = "Total Spend: Buyers (Blue) vs Non-Buyers (Red)"))
 ```
 
 #Final Conclusions
 ```{r}
-# --- CRITICAL PERFORMANCE ANALYSIS ---
-# The Naive Bayes (NB) classifier demonstrates high effectiveness in identifying 
-# Clusters 1 and 2 (Accuracy > 90%), but exhibits a significant structural 
-# weakness in classifying Cluster 3.
+# --- PERFORMANCE SUMMARY ---
+# 1. The Gaussian Naive Bayes model showed a low Accuracy (81.44%), performing worse 
+#    than the No Information Rate (84.73%). This indicates that assuming a normal 
+#    distribution for customer spending behavior is incorrect.
+#
+# 2. The Kernel Density Estimation (KDE) significantly improved Precision (from 41% to 66%) 
+#    and Accuracy (87.36%), confirming that the data follows complex, non-normal distributions.
+#    However, this improvement came at a high cost: Sensitivity dropped to 35.5%.
 
-# ## Failure in Class 3 Detection
-# The Sensitivity value of 50% for Class 3 is the most important 
-# and concerning metric. This indicates that half of the customers who truly 
-# belong to this segment were incorrectly classified into other categories 
-# (False Negatives), most likely Class 2.
-
-# ## Implication of the Kernel Model
-# The use of the Kernel Model (KDE) did not fix the poor performance in Class 3. 
-# This confirms that the issue is structural: a violation of the Naive Bayes' 
-# independence assumption. 
-
-# Cluster 3 is defined by the interaction and collinearity of multiple 
-# variables, which is precisely what 
-# the Naive Bayes model ignores. 
-
-# ## Final Recommendation (vs. Decision Tree)
-# The results confirm that the Decision Tree (CART), despite being more 
-# complex, is the superior and recommended model for this segmentation. 
-# CART was able to capture the necessary conditional rules and interactions 
-# to isolate Cluster 3 with a Sensitivity near 97%, achieving a faithful and 
-# accurate representation of the segmentation structure.
+# --- COMPARATIVE DIAGNOSIS (Naive Bayes vs. Random Forest) ---
+# The Naive Bayes classifier failed to compete with the previously trained Random Forest 
+# (which achieved ~89% Sensitivity). 
+#
+# The root cause is the "Independence Assumption". Naive Bayes assumes that variables 
+# like 'TotalExp' (Total Spend) and 'MeatExp' (Meat Spend) are unrelated. 
+# In reality, our iFood dataset contains highly correlated variables (multicollinearity).
+#
+# While Random Forest exploits these correlations to boost performance, Naive Bayes 
+# "double counts" the evidence, leading to calibrated probabilities that are either 
+# too aggressive (Gaussian) or too conservative (Kernel).
 ```
