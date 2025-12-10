@@ -90,3 +90,60 @@ rpart.plot(reg_tree,
            tweak = 1.2   # Adjust text size
 )
 ```
+
+# ==========================================
+# 5. Decision Heatmap
+# ==========================================
+```{r, fig.width=10, fig.height=8}
+library(ggplot2)
+library(viridis) # Professional color palettes
+
+# 1. Identify the top 2 most powerful variables (from the previous varImpPlot)
+# Adjust these names if your model indicates other top drivers
+var1 <- "EngagementIndex"
+var2 <- "PropensityScore"
+
+# 2. Create a synthetic 'Grid'
+# This simulates thousands of imaginary customers to map the model's decision surface
+grid_size <- 100
+x_range <- seq(min(df_model[[var1]]), max(df_model[[var1]]), length.out = grid_size)
+y_range <- seq(min(df_model[[var2]]), max(df_model[[var2]]), length.out = grid_size)
+grid_data <- expand.grid(x = x_range, y = y_range)
+names(grid_data) <- c(var1, var2)
+
+# 3. Fill the rest of the variables with the median
+# The model requires ALL columns to make a prediction, so we neutralize the others
+other_cols <- setdiff(names(df_model), c(var1, var2, "ResponseNum"))
+for(col in other_cols){
+  grid_data[[col]] <- median(df_model[[col]], na.rm=TRUE)
+  # If it's a factor, use the most common level
+  if(is.factor(df_model[[col]])) {
+    grid_data[[col]] <- levels(df_model[[col]])[1] 
+  }
+}
+
+# 4. Predict probability for the entire grid
+grid_data$Probability <- predict(reg_tree, newdata = grid_data)
+
+# 5. THE PLOT (The 'Treasure Map')
+ggplot(grid_data, aes_string(x = var1, y = var2, fill = "Probability")) +
+  geom_tile() + # Draws the heatmap tiles
+  scale_fill_viridis(option = "magma", direction = -1, name = "Purch. Prob.") +
+  
+  # Overlay REAL customers as points
+  # Cyan points = Bought (Response ~ 1), Black points = Did not buy
+  geom_point(data = df_model, aes_string(x = var1, y = var2, color = "as.factor(ResponseNum)"), 
+             alpha = 0.4, size = 1.5, inherit.aes = FALSE) +
+  scale_color_manual(values = c("black", "cyan"), 
+                     labels = c("No Purchase", "Purchase"), 
+                     name = "Actual Status") +
+  
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Decision Boundary Heatmap: The 'Sweet Spot'",
+    subtitle = "Visualizing high-probability zones for Campaign Acceptance",
+    x = "Engagement Index",
+    y = "Propensity Score"
+  ) +
+  theme(legend.position = "right")
+```
