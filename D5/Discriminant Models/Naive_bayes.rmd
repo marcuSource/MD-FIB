@@ -25,7 +25,7 @@ knitr::opts_chunk$set(
 )
 ```
 # This script implements and evaluates the Naive Bayes classifier 
-# to predict the CustomerSegment (cluster membership).
+# to predict the Response variable.
 
 ```{r}
 library(readr)
