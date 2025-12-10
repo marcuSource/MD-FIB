@@ -1,0 +1,92 @@
+---
+title: "Regression Trees iFood"
+author: "iFood Marketing Analytics"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+  toc: true
+toc_float: true
+toc_depth: 3
+theme: united
+highlight: tango
+code_folding: show
+pdf_document: default
+---
+
+# ==========================================
+# 1. Setup and Data Loading
+# ==========================================
+```{r setup, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+# Load dataset
+data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
+names(data) <- make.names(names(data))
+
+# Quick Imputation
+data$Income[is.na(data$Income)] <- median(data$Income, na.rm = TRUE)
+
+# Variable Selection
+df_tree <- data %>%
+  select(
+    Response, Income, Age, Recency,
+    WineExp, MeatExp, FishExp, SweetExp, FruitExp, GoldExp, TotalExp,
+    TotalPurchases, DealsPurc, WebPurc, CatalogPurc, StorePurc,
+    Kidhome, Teenhome, Education, MaritalSts, 
+    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain,
+    CustomerTenure, CampaignAcceptanceRate, PropensityScore, EngagementIndex
+  ) %>%
+  na.omit()
+```
+
+# ==========================================
+# 2. Conversion
+# ==========================================
+```{r}
+# To perform a REGRESSION tree on a binary response,
+# we must first convert "Yes"/"No" (or factor 1/0) into a pure numeric 1/0.
+
+# If your Response variable is already numeric 0/1 in the CSV:
+df_tree$ResponseNum <- as.numeric(df_tree$Response)
+
+# If your variable loaded as Factor or Text, ensure it becomes 0 or 1:
+# (This line is a safety check; if it's already numeric, it won't hurt)
+if(is.factor(df_tree$ResponseNum)) {
+  df_tree$ResponseNum <- as.numeric(as.character(df_tree$Response)) 
+}
+
+# Remove the original 'Response' variable to avoid confusing the model
+df_model <- df_tree %>% select(-Response)
+```
+
+# ==========================================
+# 3. Training
+# ==========================================
+```{r}
+# method = "anova" tells R: "Treat this as a mathematical regression".
+# This calculates the AVERAGE of 0s and 1s (which equals the probability).
+reg_tree <- rpart(
+  ResponseNum ~ ., 
+  data = df_model,
+  method = "anova",  
+  control = rpart.control(cp = 0.005) # Low cp to allow the tree to grow slightly more
+)
+```
+
+# ==========================================
+# 4. Visualization (probabilities map)
+# ==========================================
+```{r}
+rpart.plot(reg_tree,
+           main = "Purchase Probability Tree (0 = 0%, 1 = 100%)",
+           type = 4,
+           extra = 101,  # Shows the mean value (probability) and n (count)
+           digits = 3,   # 3 decimal places for clarity
+           box.palette = "RdYlGn", # Red (Low prob) -> Green (High prob)
+           tweak = 1.2   # Adjust text size
+)
+```
