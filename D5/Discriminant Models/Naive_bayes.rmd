@@ -116,20 +116,72 @@ conf_matrix_ker <- confusionMatrix(pred_kernel, dataTest$Response, positive = "Y
 print(conf_matrix_ker)
 ```
 
-#5.Visualization
-```{r}
-# Naive Bayes works by comparing probability distributions.
-# Let's visualize how the model distinguishes Buyers vs Non-Buyers 
-# based on the most important variable: EngagementIndex.
+# ==========================================
+# 5.Naive Bayes Heatmap
+# ==========================================
+```{r, fig.width=10, fig.height=8}
+library(ggplot2)
+library(viridis)
 
-# We use the built-in plot method for naive_bayes objects
-# It shows the "Density" of Yes (Blue) vs No (Red)
+# 1. Select the same variables as the Random Forest for fair comparison
+var1 <- "EngagementIndex"
+var2 <- "PropensityScore"
 
-cat("\nVisualizing how the model separates customers based on Engagement:\n")
-plot(nb_kernel, legend.box = TRUE, which = "EngagementIndex", arg.num = list(col = c("red", "blue"), main = "Engagement Index: Buyers (Blue) vs Non-Buyers (Red)"))
+# 2. Create the Grid
+grid_size <- 100
+x_range <- seq(min(dataTrain[[var1]]), max(dataTrain[[var1]]), length.out = grid_size)
+y_range <- seq(min(dataTrain[[var2]]), max(dataTrain[[var2]]), length.out = grid_size)
+grid_data <- expand.grid(x = x_range, y = y_range)
+names(grid_data) <- c(var1, var2)
 
-cat("\nVisualizing how the model separates customers based on Total Expenses:\n")
-plot(nb_kernel, legend.box = TRUE, which = "TotalExp", arg.num = list(col = c("red", "blue"), main = "Total Spend: Buyers (Blue) vs Non-Buyers (Red)"))
+# 3. Fill the rest of the variables (Robust Fill)
+# Naive Bayes is very sensitive, so we fill with Medians/Modes to neutralize other factors
+other_cols <- setdiff(names(dataTrain), c(var1, var2, "Response"))
+
+for(col in other_cols){
+  if(col %in% names(dataTrain)){
+    if(is.numeric(dataTrain[[col]])){
+      grid_data[[col]] <- median(dataTrain[[col]], na.rm=TRUE)
+    } else {
+      # For factors/text, take the first level/value
+      first_val <- na.omit(unique(dataTrain[[col]]))[1]
+      grid_data[[col]] <- first_val
+    }
+  }
+}
+
+# 4. PREDICTION (Specific for Naive Bayes)
+# The predict function for naive_bayes returns a matrix. We want the "Yes" column.
+probs_nb <- predict(nb_kernel, newdata = grid_data, type = "prob")
+
+# Robustly select the probability for "Yes"
+# Check if "Yes" is a column name, otherwise take the 2nd column
+if("Yes" %in% colnames(probs_nb)){
+  grid_data$Probability <- probs_nb[, "Yes"]
+} else {
+  grid_data$Probability <- probs_nb[, 2]
+}
+
+# 5. PLOT
+ggplot(grid_data, aes_string(x = var1, y = var2, fill = "Probability")) +
+  geom_tile() + 
+  scale_fill_viridis(option = "cividis", direction = 1, name = "Prob. of Yes (NB)") +
+  
+  # Overlay REAL test points
+  geom_point(data = dataTest, aes_string(x = var1, y = var2, color = "Response"), 
+             alpha = 0.6, size = 1.5, inherit.aes = FALSE) +
+  scale_color_manual(values = c("black", "cyan"), 
+                     labels = c("Did Not Buy", "Bought"), 
+                     name = "Actual Outcome") +
+  
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Naive Bayes Decision Landscape: The 'Blurry' Boundary",
+    subtitle = "Notice how the probability zones are smoother and less defined than Random Forest",
+    x = "Engagement Index",
+    y = "Propensity Score"
+  ) +
+  theme(legend.position = "right")
 ```
 
 #Final Conclusions
@@ -151,7 +203,7 @@ plot(nb_kernel, legend.box = TRUE, which = "TotalExp", arg.num = list(col = c("r
 # like 'TotalExp' (Total Spend) and 'MeatExp' (Meat Spend) are unrelated. 
 # In reality, our iFood dataset contains highly correlated variables (multicollinearity).
 #
-# While Random Forest exploits these correlations to boost performance, Naive Bayes 
-# "double counts" the evidence, leading to calibrated probabilities that are either 
-# too aggressive (Gaussian) or too conservative (Kernel).
+#While Random Forest exploits these correlations to boost performance, Naive Bayes 
+# treats them separately, leading to less precise decision boundaries (as seen in the 
+# smooth heatmap above).
 ```
