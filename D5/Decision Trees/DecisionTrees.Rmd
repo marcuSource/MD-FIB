@@ -166,3 +166,70 @@ rpart.plot(tree_viz,
            box.palette = "BuGn"  # Colors: Green for YES, Blue/Grey for NO
 )
 ```
+
+# ==========================================
+# 7. Decision Boundary Heatmap
+# ==========================================
+```{r, fig.width=10, fig.height=8}
+library(ggplot2)
+library(viridis)
+
+# 1. Identify variables
+var1 <- "EngagementIndex"
+var2 <- "PropensityScore"
+
+# 2. Create Grid
+grid_size <- 100
+x_range <- seq(min(train_data[[var1]]), max(train_data[[var1]]), length.out = grid_size)
+y_range <- seq(min(train_data[[var2]]), max(train_data[[var2]]), length.out = grid_size)
+grid_data <- expand.grid(x = x_range, y = y_range)
+names(grid_data) <- c(var1, var2)
+
+# 3. Fill other columns (ROBUST METHOD)
+# We fill missing columns so the model can run. 
+# We use median for numbers and the first valid value for text/factors.
+other_cols <- setdiff(names(train_data), c(var1, var2, "Response"))
+
+for(col in other_cols){
+  # Check if the column exists in train_data to avoid errors
+  if(col %in% names(train_data)){
+    if(is.numeric(train_data[[col]])){
+      # If numeric, fill with Median
+      grid_data[[col]] <- median(train_data[[col]], na.rm=TRUE)
+    } else {
+      # If text or factor, fill with the first valid unique value found
+      # This fixes the "Education not found" error by handling characters correctly
+      first_val <- na.omit(unique(train_data[[col]]))[1]
+      grid_data[[col]] <- first_val
+    }
+  }
+}
+
+# 4. PREDICTION
+# We calculate probabilities using the Random Forest
+probs_grid <- predict(rf_model, newdata = grid_data, type = "prob")
+
+# Robustly select the "Yes" column (usually the 2nd one)
+grid_data$Probability <- probs_grid[, 2]
+
+# 5. PLOT
+ggplot(grid_data, aes_string(x = var1, y = var2, fill = "Probability")) +
+  geom_tile() + 
+  scale_fill_viridis(option = "plasma", direction = -1, name = "Prob. of Yes") +
+  
+  # Overlay REAL points from test data
+  geom_point(data = test_data, aes_string(x = var1, y = var2, color = "Response"), 
+             alpha = 0.6, size = 1.5, inherit.aes = FALSE) +
+  scale_color_manual(values = c("black", "cyan"), 
+                     labels = c("Did Not Buy", "Bought"), 
+                     name = "Actual Outcome") +
+  
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Decision Boundary:",
+    subtitle = "Visualizing the probability of saying 'Yes' based on the top 2 drivers",
+    x = var1,
+    y = var2
+  ) +
+  theme(legend.position = "right")
+```
