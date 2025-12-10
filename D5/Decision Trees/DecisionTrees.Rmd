@@ -25,108 +25,144 @@ knitr::opts_chunk$set(
 )
 ```
 
+# ==========================================
+# 0. Needed libraries
+# ==========================================
 ```{r}
-#Libraries
 library(readr)
 library(dplyr)
+library(caret)
 library(rpart)
 library(rpart.plot)
-library(caret)
+library(pROC)          
+library(randomForest)
 ```
 
-#1.Data Loading and Preparation
+# ==========================================
+# 1. Load and preparation
+# ==========================================
 ```{r}
-#Load the dataset
 data <- read_csv("ifood_enriched.csv", show_col_types = FALSE)
-#Normalize column names to be syntactically valid in R.
 names(data) <- make.names(names(data))
-#Variable Conversion: Convert the target variable ('CustomerSegment') to a factor.
-data <- data %>% mutate(CustomerSegment = as.factor(CustomerSegment))
-#NA Imputation: Replace missing values (NA) in 'Income' with the median.
+
+# Basic Imputation
 data$Income[is.na(data$Income)] <- median(data$Income, na.rm = TRUE)
 
-# Select all variables to be used as predictors.
+# Variable Selection
 df_model <- data %>%
   select(
-    CustomerSegment, 
-    Income, Age, Recency,
+    Response, Income, Age, Recency,
     WineExp, MeatExp, FishExp, SweetExp, FruitExp, GoldExp, TotalExp,
     TotalPurchases, DealsPurc, WebPurc, CatalogPurc, StorePurc,
     Kidhome, Teenhome, Education, MaritalSts, 
-    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain, Response,
+    WebVisits, AccCmp3, AccCmp4, AccCmp5, AccCmp1, AccCmp2, Complain,
     CustomerTenure, CampaignAcceptanceRate, PropensityScore, EngagementIndex
   ) %>%
-  # Remove any rows with remaining NAs in the selected columns.
   na.omit()
+
+# Caret works better with text labels for classes rather than "0" and "1"
+df_model$Response <- factor(df_model$Response, 
+                            levels = c(0, 1), 
+                            labels = c("No", "Yes"))
 ```
 
-#2.Data Splitting
+# ==========================================
+# 2. Data partitioning
+# ==========================================
 ```{r}
-#Set a seed for reproducibility of the random partition.
 set.seed(42)
-#Create indices for stratified partitioning (70% for training).
-index <- createDataPartition(df_model$CustomerSegment, p = 0.7, list = FALSE)
-#Training set (70%).
+index <- createDataPartition(df_model$Response, p = 0.7, list = FALSE)
 train_data <- df_model[index, ]
-#Testing set (remaining 30%).
 test_data  <- df_model[-index, ]
 ```
 
-#2.Initial Tree Training
+# ==========================================
+# 3. Advanced Training 
+# ==========================================
+# Training control configuration
+# sampling = "up" -> Makes a "yes" more important
 ```{r}
-#Training the Initial (Fully Grown) Decision Tree
-#cp = 0: Sets the Complexity Parameter to zero to grow the tree to its maximum possible size.
-#xval = 10: Performs 10-fold cross-validation to estimate error and find the optimal CP for pruning.
-tree_fit <- rpart(
-  CustomerSegment ~ .,
-  data = train_data,
-  method = "class",
-  control = rpart.control(cp = 0, xval = 10)
+ctrl <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,                # Required to calculate probabilities
+  summaryFunction = twoClassSummary,# Optimization for ROC instead of Accuracy
+  sampling = "up",                  
+  verboseIter = FALSE
 )
 ```
 
-#3.Optimizing and prunning
 ```{r}
-#Display the Complexity Parameter (CP) table showing cross-validation error ('xerror') for different CPs.
-printcp(tree_fit)
-
-#Determine the Optimal CP: Find the index that minimizes the cross-validation error.
-best_cp_index <- which.min(tree_fit$cptable[, "xerror"])
-best_cp <- tree_fit$cptable[best_cp_index, "CP"]
-
-#Prune the tree: Use the optimal CP to simplify the model and improve generalization (avoid overfitting).
-pruned_tree <- prune(tree_fit, cp = best_cp)
+# Train the Random Forest
+set.seed(42)
+rf_model <- train(
+  Response ~ .,
+  data = train_data,
+  method = "rf",
+  metric = "ROC",     # Aiming for the best balance between detection and precision
+  trControl = ctrl,
+  tuneLength = 5      # Automatically test different configurations
+)
 ```
 
-#4.Visualization and variable importance
+# ==========================================
+# 4. Threshold Assessment and Adjustment
+# ==========================================
 ```{r}
-#Display a vector showing the relative importance of each predictor variable.
-print(pruned_tree$variable.importance)
+# Predict Probabilities instead of direct classes
+probs <- predict(rf_model, test_data, type = "prob")
 
-#Generate the plot of the pruned tree.
-rpart.plot(pruned_tree,
-           main = paste("Árbol Podado (CP =", round(best_cp, 5), ")"),
-           type = 4,
-           extra = 101,
-           branch.lty = 3,
-           nn = TRUE,
-           cex = 0.7,
-           fallen.leaves = TRUE)
+# Calculate ROC curve
+roc_obj <- roc(test_data$Response, probs$Yes, levels = c("No", "Yes"))
+
+# Find the best cutoff point (Threshold)
+# This balances detecting buyers vs. avoiding disturbing non-buyers
+best_coords <- coords(roc_obj, "best", best.method = "closest.topleft", ret = "threshold")
+best_threshold <- best_coords$threshold
+
+# Apply the custom threshold
+preds_class <- factor(ifelse(probs$Yes > best_threshold, "Yes", "No"), levels = c("No", "Yes"))
+
+# Final Confusion Matrix
+cm_rf <- confusionMatrix(preds_class, test_data$Response, positive = "Yes")
 ```
 
-#5.Model Evaluation
+# ==========================================
+# 5. Results and variable importance
+# ==========================================
 ```{r}
-#Generate class predictions on the test set.
-test_predictions <- predict(pruned_tree, test_data, type = "class")
+print(cm_rf)
+cat("\nAUC (Area Under the Curve):", auc(roc_obj))
+cat("\nBest Decision Threshold:", best_threshold)
 
-#Create the Confusion Matrix, comparing predictions vs. actual values.
-cm <- confusionMatrix(test_predictions, test_data$CustomerSegment)
+# Variable Importance Plot
+# This indicates which variables actually drive the decision
+varImpPlot(rf_model$finalModel, main = "Top Influential Variables for Purchase", n.var = 20)
+```
 
-#Display detailed results.
-cm
-print(pruned_tree)
+# ==========================================
+# 6. Representative tree visualization
+# ==========================================
+```{r}
+# Train a simple tree JUST for visualization of business rules.
+# We mimic the balancing effect performed by the Random Forest.
 
-#Print key metrics.
-cat("\nCP Óptimo:", best_cp)
-cat("\nAccuracy:", cm$overall["Accuracy"], "\n")
+tree_viz <- rpart(
+  Response ~ ., 
+  data = train_data,
+  method = "class",
+  parms = list(prior = c(0.5, 0.5)),  # Trick to visually balance importance
+  control = rpart.control(cp = 0.005, maxdepth = 5) # Limit depth for readability
+)
+
+# Print the tree
+rpart.plot(tree_viz,
+           main = "Business Rules Tree (Buyer Profile)",
+           type = 4,             # Draws nice labels
+           extra = 104,          # Shows probability for each class (multiclass)
+           under = TRUE,         # Places the % under the box
+           faclen = 0,           # Shows full variable names
+           cex = 0.7,            # Text size
+           box.palette = "BuGn"  # Colors: Green for YES, Blue/Grey for NO
+)
 ```
