@@ -44,7 +44,7 @@ df_tree <- data %>%
 ```
 
 # ==========================================
-# 2. Conversion
+# 2. Data Conversion (Binary to Numeric)
 # ==========================================
 ```{r}
 # To perform a REGRESSION tree on a binary response,
@@ -64,7 +64,7 @@ df_model <- df_tree %>% select(-Response)
 ```
 
 # ==========================================
-# 3. Training
+# 3. Model Training
 # ==========================================
 ```{r}
 # method = "anova" tells R: "Treat this as a mathematical regression".
@@ -78,7 +78,7 @@ reg_tree <- rpart(
 ```
 
 # ==========================================
-# 4. Visualization (probabilities map)
+# 4. Visualization (Probability Map)
 # ==========================================
 ```{r}
 rpart.plot(reg_tree,
