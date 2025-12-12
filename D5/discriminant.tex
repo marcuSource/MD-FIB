@@ -4,4 +4,109 @@
 
 \subsection{k-Nearest Neighbour}
 
-\subsection{Linear Discrimination Analysis}
+\subsection{Linear Discriminant Analysis (LDA)}
+
+Linear Discriminant Analysis (LDA) was implemented as a parametric classification technique to model the binary target variable \textit{Response}. This method assumes that the explanatory variables within each class are normally distributed and share a common covariance matrix. By projecting the multi-dimensional feature space onto a lower-dimensional axis that maximizes the ratio of between-class variance to within-class variance, LDA creates a linear decision boundary. This approach is particularly valuable for this analysis due to its high interpretability, allowing for a clear understanding of the specific financial and behavioral drivers that characterize customers who accept the marketing campaign versus those who do not.
+
+\subsubsection{Methodology and Model Setup}
+
+The implementation of the LDA model required specific preprocessing steps to satisfy the algorithm's statistical assumptions and optimize its performance for the target variable:
+
+\begin{enumerate}
+    \item \textbf{Feature Selection:} The analysis utilized a subset of continuous numerical variables. This included financial metrics (e.g., \textit{Income}, \textit{WineExp}, \textit{MeatExp}) and behavioral indicators (e.g., \textit{Recency}, \textit{WebVisits}, \textit{StorePurc}). Categorical variables and identifiers were excluded to maintain a continuous feature space suitable for linear discrimination.
+    \item \textbf{Standardization:} All predictor variables were standardized (centered to a mean of 0 and scaled to a standard deviation of 1). This step is mathematically essential in LDA to ensure that the resulting scaling coefficients are directly comparable. Without standardization, variables with larger magnitudes (like \textit{Income}) would artificially dominate the discriminant function compared to variables with smaller ranges (like \textit{NumWebPurchases}).
+    \item \textbf{Handling Class Imbalance via Priors:} The dataset exhibits a significant imbalance, with approximately 15\% of customers responding positively ("Yes") and 85\% negatively ("No"). A standard LDA using natural priors would bias the prediction heavily towards the majority class to maximize global accuracy, often resulting in a Sensitivity near zero. To address this and align with the business objective of identifying potential buyers, we enforced \textbf{equal prior probabilities} (\texttt{prior = c(0.5, 0.5)}). This adjustment compels the algorithm to weigh the minority class ("Yes") equally, thereby prioritizing the detection of true positives.
+\end{enumerate}
+
+\subsubsection{Visual Analysis of Separation}
+
+The core mechanic of LDA is the creation of a Linear Discriminant axis (LD1). Figure \ref{fig:lda_density} illustrates the distribution of the transformed data along this new axis.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/LDA_1_Density_Separation.png}
+    \caption{Density Plot of Linear Discriminant Scores (LD1)}
+    \label{fig:lda_density}
+\end{figure}
+
+The density plot reveals a distinct separation between the two classes. The distribution of customers who accepted the offer (Teal) is shifted significantly to the right compared to those who declined (Red). While there is an area of overlap, which represents the inherent difficulty in separating marginal cases, the distinct peaks indicate that the linear combination of the selected features contains strong discriminative power regarding the customer response.
+
+To visualize this separation in the context of the original variables, Figure \ref{fig:lda_ellipses} plots the data based on the two most significant features, overlaid with 95\% confidence ellipses.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/LDA_5_Ellipses.png}
+    \caption{Confidence Ellipses: Income vs. Wine Expenditure}
+    \label{fig:lda_ellipses}
+\end{figure}
+
+The confidence ellipses demonstrate a clear divergence in the geometric centers of the two groups. The "Yes" class is clustered in the upper-right quadrant, corresponding to higher income levels and higher expenditure on wine products, whereas the "No" class is concentrated in the lower-left region.
+
+\subsubsection{Model Interpretation: Key Drivers}
+
+A key advantage of LDA is the ability to interpret the scaling coefficients to identify the specific drivers of the classification decision. Figure \ref{fig:lda_importance} displays the variables with the highest absolute influence on the discriminant function.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/LDA_2_Feature_Importance.png}
+    \caption{Top Determinant Factors (LDA Coefficients)}
+    \label{fig:lda_importance}
+\end{figure}
+
+The analysis of the coefficients highlights the following behavioral patterns:
+\begin{itemize}
+    \item \textbf{WineExp (Strong Positive):} This variable is the dominant predictor. A high positive coefficient indicates that expenditure on wine is the single most significant characteristic distinguishing responders from non-responders.
+    \item \textbf{Recency (Strong Negative):} The \textit{Recency} variable has a substantial negative weight. Since this metric measures the days elapsed since the last purchase, a negative coefficient implies that lower values (i.e., more recent activity) increase the likelihood of a positive response.
+    \item \textbf{MeatExp and WebVisits (Positive):} Secondary drivers include expenditure on meat products and the frequency of web visits, suggesting that the target demographic is not only affluent but also digitally engaged.
+\end{itemize}
+
+\subsubsection{Performance Evaluation}
+
+The model's predictive capability was assessed using a held-out test set comprising 20\% of the data. The confusion matrix in Table \ref{tab:lda_confusion} details the classification results.
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix (LDA - Test Set)}
+\label{tab:lda_confusion}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+& & \multicolumn{2}{c}{\textbf{Actual Class}} \\
+& & No (0) & Yes (1) \\ \midrule
+\textbf{Predicted} & No (0) & 281 & 17 \\
+\textbf{Class} & Yes (1) & 61 & 48 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+The performance metrics derived from this matrix are as follows:
+\begin{itemize}
+    \item \textbf{Accuracy (80.84\%):} The model correctly classified over 80\% of the cases. While this provides a general baseline, it is secondary to metrics that specifically evaluate the minority class in this marketing context.
+    \item \textbf{Sensitivity / Recall (73.85\%):} This is the critical metric for the campaign's success. The model successfully identified approximately 74\% (48 out of 65) of the actual positive responders. This high sensitivity confirms that the adjustment of prior probabilities was effective in capturing the target audience.
+    \item \textbf{Specificity (82.16\%):} The model maintains a robust ability to correctly identify non-responders, ensuring that marketing resources are not wasted on customers unlikely to convert.
+    \item \textbf{AUC (0.8278):} The Area Under the Curve is well above 0.8, indicating strong separability and a reliable ranking of probabilities.
+\end{itemize}
+
+The Receiver Operating Characteristic (ROC) curve in Figure \ref{fig:lda_roc} visually confirms the model's performance, showing a trajectory that rises steeply toward the top-left corner, indicative of a good trade-off between the True Positive Rate and False Positive Rate.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/LDA_4_ROC_Curve.png}
+    \caption{ROC Curve for LDA (AUC = 0.828)}
+    \label{fig:lda_roc}
+\end{figure}
+
+\subsubsection{Decision Boundaries}
+
+Finally, Figure \ref{fig:lda_boundary} illustrates the decision boundary generated by the model in the two-dimensional space defined by the primary predictors, \textit{Income} and \textit{WineExp}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/LDA_3_Decision_Boundaries.png}
+    \caption{LDA Linear Decision Boundaries (Income vs Wine Expenditure)}
+    \label{fig:lda_boundary}
+\end{figure}
+
+The partition plot demonstrates the linearity of the separation. The LDA algorithm divides the feature space with a straight line, classifying the upper-right region—characterized by high income and high wine expenditure—as the "Yes" response zone (Gold), and the lower-left region as the "No" response zone (Light Blue). This clear, linear demarcation underscores the model's reliance on the strong correlation between purchasing power, product affinity, and campaign acceptance.
+
+\subsubsection{Conclusion on LDA}
+
+The Linear Discriminant Analysis provided a robust framework for modeling the customer \textit{Response}. By enforcing equal priors, the model overcame the inherent class imbalance to achieve a Sensitivity of \textbf{73.85\%}, effectively capturing the majority of potential buyers. The analysis of the discriminant coefficients offers a clear business profile for the ideal target: the campaign is most likely to succeed with customers who have a high affinity for wine products and have engaged with the store recently (low Recency), regardless of the channel used.
