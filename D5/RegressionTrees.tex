@@ -1,1 +1,74 @@
+\section{Regression Tree}
 
+To refine our targeting strategy, we implemented a Regression Tree. Unlike the standard classification tree which splits purely on class purity (Gini Impurity), this model treats the target variable as a continuous probability ($Y \in [0, 1]$). This allows us to estimate the \textit{exact likelihood} of a purchase for every customer segment.
+
+\subsection{Performance Metrics}
+The model was evaluated on the test set ($N=2031$) by applying a standard probability threshold of 0.5. The results indicate that this model operates with \textbf{exceptional precision}.
+
+\begin{itemize}
+    \item \textbf{Accuracy (93.85\%):} 
+    The model demonstrates robust predictive power.
+    \[ \frac{1666 + 240}{2031} = 0.9385 \]
+    It significantly outperforms the No Information Rate (84.69\%), confirming its ability to correctly classify the vast majority of customers.
+
+    \item \textbf{Specificity (96.9\%):}
+    The model is incredibly clean. It correctly rejected 1666 non-buyers and only generated 54 False Positives. If the cost of contacting a customer is high, this is the ideal model because it minimizes waste.
+
+    \item \textbf{Sensitivity (77.2\%):}
+    \[ \frac{240}{240 + 71} = 0.7717 \]
+    The sensitivity is solid, though it reflects the model's conservative nature. By prioritizing high-probability signals, it focuses on the most certain buyers rather than casting a wide net.
+\end{itemize}
+
+\subsection{Visualizing the "Sweet Spot"}
+The probability landscape is visualized in Figure \ref{fig:rtree_heat}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/heatmapRTree.png}
+    \caption{Decision Boundary: The "Sweet Spot"}
+    \label{fig:rtree_heat}
+\end{figure}
+
+The heatmap shows a distinct block-like structure typical of regression trees:
+\begin{itemize}
+    \item \textbf{The Purple Zone (High Probability):} The model isolates a specific region where \texttt{EngagementIndex} $> 40$ and \texttt{PropensityScore} $> 0.5$. Customers in this block have a predicted purchase probability of over 75\%.
+    \item \textbf{The Yellow Zone (Low Probability):} The vast majority of the space is yellow, reflecting the model's conservative nature.
+\end{itemize}
+
+\subsection{Tree Structure Analysis}
+Figure \ref{fig:rtree_viz} details the hierarchical logic.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/RTree.png}
+    \caption{Purchase Probability Tree (0 = 0\%, 1 = 100\%)}
+    \label{fig:rtree_viz}
+\end{figure}
+
+The root nodes confirm our earlier findings but with granular probabilities:
+\begin{itemize}
+    \item \textbf{Base Probability:} The average probability of purchase in the dataset is 15.3\% (top node).
+    \item \textbf{Top Split:} \texttt{PropensityScore} is the primary filter. If score $< 0.278$, the probability drops immediately to 7.7\%.
+    \item \textbf{The Best Leaf:} On the far right, we see a segment with \texttt{EngagementIndex} $> 50.5$ achieving a massive \textbf{93.6\% probability}.
+\end{itemize}
+
+\subsection{Conclusion: Regression Tree Analysis}
+
+The Regression Tree approach, by treating the target as a continuous probability rather than a simple class, provided highly precise and efficient results.
+
+\subsubsection{Key Takeaways}
+\begin{itemize}
+    \item \textbf{High Precision:} With a Specificity of 96.9\%, this model acts as a sniper. It effectively eliminated False Positives (only 54 in the entire test set), meaning it almost never recommends contacting a customer who is not interested.
+    
+    \item \textbf{Strong Accuracy (93.9\%):} It achieved a remarkable correct classification rate ($N=2031$), strictly adhering to the probability signals driven by the \texttt{EngagementIndex}.
+    
+    \item \textbf{The Trade-off:} The gain in precision comes at the cost of volume. With a Sensitivity of 77.2\%, the model prioritizes "quality over quantity," focusing only on the segments with the highest probability density to ensure reliability.
+\end{itemize}
+
+\subsubsection{Strategic Application}
+Based on these metrics, the Regression Tree is the optimal choice for **High-Cost Marketing Channels**.
+
+\begin{itemize}
+    \item \textbf{Scenario:} If the campaign involves expensive actions (e.g., sending physical luxury catalogs, personalized phone calls, or courier gifts), budget efficiency is paramount.
+    \item \textbf{Recommendation:} Deploy this model to filter the target list. By targeting only the "Purple Zone" (Engagement $> 50$, Propensity $> 0.5$), the business ensures that marketing spend is virtually zero on non-buyers, maximizing the ROI per contact.
+\end{itemize}
