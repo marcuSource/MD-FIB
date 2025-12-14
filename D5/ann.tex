@@ -1,1 +1,151 @@
 \section{Artificial Neural Networks}
+
+To investigate the presence of non-linear interactions within the customer data, we developed an \textbf{Artificial Neural Network (ANN)}. Unlike traditional linear models (like Logistic Regression), ANNs utilize hidden layers to learn hierarchical representations of the input features, allowing them to model complex behavioral patterns without manual feature engineering.
+
+\subsection{Target Variable Methodology}
+The model was trained to predict the binary variable \textbf{Response} ($Y \in \{0, 1\}$).
+\begin{itemize}
+    \item \textbf{Definition:} This variable indicates whether a customer accepted the offer (1) or rejected it (0) in the pilot campaign.
+    \item \textbf{Justification:} Accurately modeling \texttt{Response} is critical for cost optimization. By distinguishing likely buyers from non-buyers, the business can shift from a mass-marketing strategy to a precision-targeting approach, thereby maximizing the Return on Marketing Investment (ROMI).
+\end{itemize}
+
+\subsection{Model Performance Analysis}
+We implemented a robust Multi-Layer Perceptron (MLP) architecture using the PyTorch framework (Structure: $14 \to 128 \to 64 \to 32 \to 1$ neurons) with Dropout regularization (40\%) to prevent overfitting.
+
+The model's performance on the test set ($N=406$) was evaluated using a customized decision threshold optimized for the F1-Score.
+
+\subsubsection{Confusion Matrix Results}
+Figure \ref{fig:ann_heatmap} visualizes the classification outcomes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Images/ANN_Confusion_Heatmap.png}
+    \caption{Neural Network Confusion Matrix}
+    \label{fig:ann_heatmap}
+\end{figure}
+
+The matrix reveals the following:
+\begin{itemize}
+    \item \textbf{True Positives (40):} The model successfully identified 40 buyers.
+    \item \textbf{False Negatives (25):} It failed to detect 25 buyers, misclassifying them as non-buyers.
+    \item \textbf{True Negatives (308):} It correctly rejected 308 uninterested customers.
+\end{itemize}
+
+\subsubsection{Key Metrics}
+\begin{itemize}
+    \item \textbf{Accuracy (85.7\%):} 
+    \[ \frac{308 + 40}{406} = 0.857 \]
+    The model achieves high accuracy primarily by being "safe." It correctly identifies the vast majority of non-buyers. However, in an imbalanced dataset, accuracy can be misleading.
+    
+    \item \textbf{Sensitivity / Recall (61.5\%):}
+    \[ \frac{40}{40 + 25} = 0.615 \]
+    This is the most critical insight. The Neural Network found \textbf{61.5\%} of the total buyers. While this is a statistically valid result, it indicates the model is conservative—it prioritizes being "sure" over finding every possible lead.
+    
+    \item \textbf{Specificity (90.3\%):}
+    \[ \frac{308}{308 + 33} = 0.903 \]
+    The model is excellent at reducing waste. It rarely recommends calling a customer who isn't interested (only 33 False Positives).
+\end{itemize}
+
+\subsubsection{ROC Curve Analysis}
+The trade-off between sensitivity and specificity is illustrated in Figure \ref{fig:ann_roc}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/ANN_ROC.png}
+    \caption{ROC Curve for Neural Network (AUC = 0.833)}
+    \label{fig:ann_roc}
+\end{figure}
+
+The AUC (Area Under the Curve) of \textbf{0.833} indicates the model has good discriminative ability, effectively separating buyers from non-buyers most of the time. However, the curve is shallower in the high-sensitivity region compared to tree-based ensemble methods, confirming that for this specific tabular dataset, the Neural Network reached a performance ceiling dictated by the sample size.
+
+\subsubsection{Confidence Distribution}
+Figure \ref{fig:ann_dens} displays the probability densities.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/ANN_Density_Plot.png}
+    \caption{Neural Network Confidence Distribution}
+    \label{fig:ann_dens}
+\end{figure}
+
+The plot shows a clear separation between the two classes, but with significant overlap in the middle probabilities (0.4 - 0.6). This uncertainty in the "grey area" is likely what prevented the model from achieving higher sensitivity without drastically hurting precision.
+
+% --- DEMOTED SECTION: CHAMPION MODEL (NOW A SUBSECTION OF ANN) ---
+
+\subsection{Champion Model: Aggressive XGBoost}
+
+While the Neural Network provided a robust baseline, its conservative nature (missing 39\% of buyers) was suboptimal for a campaign where the primary goal is revenue generation. To overcome this, we deployed an \textbf{Aggressive XGBoost} strategy explicitly tuned to maximize \textbf{Sensitivity}.
+
+\subsubsection{Methodology: The "Aggressive" Strategy}
+Unlike standard modeling which treats all errors equally, we implemented a cost-sensitive approach:
+\begin{itemize}
+    \item \textbf{Weighted Loss Function:} We applied a penalty multiplier of $\sim8.4x$ for every missed buyer. This forces the algorithm to "panic" if it misses a sale, encouraging it to predict "Yes" even when uncertain.
+    \item \textbf{Threshold Optimization:} We lowered the decision threshold to \textbf{0.44}. By accepting a lower probability cutoff, we capture the "tail" of the buyer distribution that the Neural Network ignored.
+\end{itemize}
+
+\subsubsection{Performance Evaluation}
+This strategy resulted in a massive improvement in buyer detection.
+
+\paragraph{ROC Curve Comparison}
+Figure \ref{fig:xgb_roc} displays the ROC curve for the champion model.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{Images/XGB_Aggressive_ROC.png}
+    \caption{ROC Curve: Aggressive XGBoost (AUC = 0.857)}
+    \label{fig:xgb_roc}
+\end{figure}
+The model achieved an \textbf{AUC of 0.857}, outperforming the Neural Network (0.833). The curve pushes significantly higher in the top-left quadrant, indicating superior discrimination power.
+
+\paragraph{Confusion Matrix Results}
+The impact of the aggressive strategy is visible in Figure \ref{fig:xgb_heatmap}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Images/XGB_7_Confusion_Heatmap.png}
+    \caption{Confusion Matrix: High Buyer Detection}
+    \label{fig:xgb_heatmap}
+\end{figure}
+
+\textbf{Key Differences from ANN:}
+\begin{itemize}
+    \item \textbf{Sensitivity (78.5\%):} The XGBoost model found \textbf{51 buyers} (compared to only 40 with ANN). It correctly identified nearly 80\% of the target audience.
+    \item \textbf{The Trade-off:} To find these extra 11 buyers, the model generated more False Positives (78 vs 33). However, in a low-cost digital marketing context, this trade-off is highly profitable.
+\end{itemize}
+
+% --- DEMOTED SECTION: BUSINESS DRIVERS (NOW A SUBSECTION OF ANN) ---
+
+\subsection{Business Drivers \& ROI Analysis}
+
+\subsubsection{What Drives a Purchase?}
+To make the model actionable, we analyzed the behavioral drivers using Partial Dependence Plots (Figure \ref{fig:pdp}).
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/XGB_8_PDP_Behaviors.png}
+    \caption{Behavioral Drivers: Recency vs. Wine Expenditure}
+    \label{fig:pdp}
+\end{figure}
+\begin{itemize}
+    \item \textbf{Recency (Left):} Customer engagement decays rapidly. If a customer hasn't interacted in the last \textbf{20 days}, their probability of buying drops by $\sim$40\%.
+    \item \textbf{Wine Expenditure (Right):} This is the "Golden Signal." Probability rises linearly with wine spending. A customer spending 500+ units on wine is the ideal target profile.
+\end{itemize}
+
+\subsubsection{Campaign Efficiency (Lift)}
+Figure \ref{fig:lift} answers the ROI question: "Is this better than random calling?"
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/XGB_6_Lift_Chart.png}
+    \caption{Cumulative Lift Curve}
+    \label{fig:lift}
+\end{figure}
+The model provides a \textbf{4x Lift} in the top deciles. By contacting only the top 20\% of customers ranked by this model, we capture the vast majority of buyers, allowing for significant budget savings compared to a mass-market approach.
+
+% --- DEMOTED SECTION: CONCLUSION (NOW A SUBSECTION OF ANN) ---
+
+\subsection{Final Conclusion}
+
+We evaluated two advanced architectures to optimize the marketing campaign.
+\begin{itemize}
+    \item The \textbf{Neural Network} was highly specific (90.3\% Specificity) but too conservative, missing 39\% of sales opportunities.
+    \item The \textbf{Aggressive XGBoost} sacrificed some precision to achieve a dominating \textbf{Sensitivity of 78.5\%}.
+\end{itemize}
+
+\textbf{Recommendation:} We recommend deploying the \textbf{Aggressive XGBoost} model. By identifying 11 more buyers per 400 customers than the Neural Network, it maximizes total revenue. The marketing team should focus strictly on customers who have purchased wine recently (within 20 days), as these are the highest-probability targets.
