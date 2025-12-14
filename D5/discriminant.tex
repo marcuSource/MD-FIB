@@ -61,6 +61,53 @@ While the Kernel Density Naive Bayes improved upon the Gaussian baseline, we rec
 
 \subsection{k-Nearest Neighbour}
 
+To investigate whether customer similarity (proximity in feature space) dictates purchasing behavior, we implemented a k-Nearest Neighbors (kNN) classifier. Unlike tree-based methods that slice data using rules, kNN relies on geometric distance (Euclidean) to classify a customer based on their similarity to known buyers.
+
+\subsubsection{Optimization Strategy}
+Given the severe class imbalance (only $\sim$15\% buyers), standard accuracy is a misleading metric. Therefore, we optimized the hyperparameter $k$ (number of neighbors), ensuring a balance between Precision and Recall. We tested odd values from $k=1$ to $k=25$.
+
+\subsubsection{Performance Analysis}
+The model's performance on the test set ($N=609$) was unsatisfactory, revealing fundamental limitations of distance-based algorithms in high-dimensional marketing data.
+
+Figure \ref{fig:knn_elbow} shows the optimization curve.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Images//knnModel.png}
+    \caption{Optimization Curve: F1-Score vs Neighbors ($k$)}
+    \label{fig:knn_elbow}
+\end{figure}
+
+Paradoxically, the algorithm selected $k=1$ as the optimal value. 
+\begin{itemize}
+    \item \textbf{Interpretation:} A $k=1$ model implies that the decision boundary is extremely jagged and sensitive to noise. The model is essentially "memorizing" isolated data points rather than learning a generalized pattern.
+\end{itemize}
+
+The breakdown of predictions is visualized in Figure \ref{fig:knn_heatmap}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Images/heatmapKNN.png}
+    \caption{kNN Confusion Matrix ($k=1$)}
+    \label{fig:knn_heatmap}
+\end{figure}
+
+The metrics confirm the model's inability to detect buyers reliably:
+\begin{itemize}
+    \item \textbf{Accuracy (82.4\%):} 
+    Lower than the No Information Rate (84.7\%). The model performs worse than a "dummy" classifier that simply predicts "No" for everyone.
+    
+    \item \textbf{Sensitivity (28.0\%):}
+    \[ \frac{26}{26 + 67} = 0.279 \]
+    \textbf{Critical Failure:} The model missed 72\% of the target audience (67 False Negatives). In a crowded feature space, the "buyers" are too sparse for the algorithm to form cohesive clusters.
+    
+    \item \textbf{Specificity (92.2\%):}
+    While it correctly identified non-buyers, this is simply a byproduct of the model's tendency to predict the majority class.
+\end{itemize}
+
+\subsubsection{Conclusion}
+The kNN model suffered from the Curse of Dimensionality. With nearly 20 predictor variables (Income, Spending across 6 categories, Web Visits, etc.), the concept of "distance" becomes diluted, making it impossible for the algorithm to distinguish true buyer clusters. We recommend discarding this model.
+
 \subsection{Linear Discriminant Analysis (LDA)}
 
 Linear Discriminant Analysis (LDA) was implemented as a parametric classification technique to model the binary target variable \textit{Response}. This method assumes that the explanatory variables within each class are normally distributed and share a common covariance matrix. By projecting the multi-dimensional feature space onto a lower-dimensional axis that maximizes the ratio of between-class variance to within-class variance, LDA creates a linear decision boundary. This approach is particularly valuable for this analysis due to its high interpretability, allowing for a clear understanding of the specific financial and behavioral drivers that characterize customers who accept the marketing campaign versus those who do not.
