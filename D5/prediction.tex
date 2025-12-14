@@ -1,135 +1,274 @@
-\section{Linear Regression (Linear Probability Model)}
+% ============================================================
+% Section: Linear Regression (LPM) + Logistic Regression (Logit)
+% Drop-in LaTeX section (report-ready)
+%
+% Recommended in the preamble:
+% \usepackage{graphicx}
+% \usepackage{booktabs}
+% \usepackage{float}
+% \usepackage{subcaption}   % only if you use subfigures
+% \graphicspath{{Images/}{outputs/}} % so you can keep figures in either folder
+% ============================================================
+
+\section{Linear Regression and Logistic Regression for Campaign Response}
 
 \subsection{Objective}
-The objective of this section is to identify which customer characteristics are associated with the probability of responding to a marketing campaign. The dependent variable is \texttt{Response}, a binary indicator equal to 1 if the customer responded to the campaign and 0 otherwise.
+The objective of this section is to identify which customer characteristics are associated with the probability of responding to a marketing campaign. The dependent variable is \texttt{Response}, a binary indicator equal to 1 if the customer responded to the campaign and 0 otherwise. The analysis uses $n = 2031$ customers, with an observed response rate of approximately 15.3\% (311 responders out of 2031).
 
-\subsection{Methodology}
-We fitted a linear regression model using \texttt{lm()} with \texttt{Response} as the dependent variable. Since the outcome is binary, the resulting model is a \textit{Linear Probability Model (LPM)}. In this setting, each coefficient represents an additive change in the probability of response, holding other variables constant.
+\subsection{Why two models? (LPM vs Logistic Regression)}
+We begin with a \textbf{Linear Probability Model (LPM)} fitted with \texttt{lm()}, because its coefficients are very easy to interpret: each coefficient is an \emph{additive} change in response probability.
+However, because the outcome is binary, the LPM has known limitations:
+(i) predicted values can fall outside $[0,1]$,
+(ii) residual variance is not constant (heteroscedasticity),
+and (iii) residuals are not normally distributed.
 
-We started from a full model including demographic, behavioural, spending, and past-campaign variables (m4). To improve interpretability while maintaining explanatory power, we applied a stepwise selection based on AIC, obtaining a more parsimonious final model (m\_step). The analysis was performed on 2031 observations.
+To address these limitations, we also fit a \textbf{Logistic Regression (Logit)} model with \texttt{glm(..., family = binomial)}.
+Logistic regression is appropriate for binary outcomes because it constrains predicted probabilities to $[0,1]$ and models non-linear probability changes through the logistic link.
+Logit coefficients are not directly in probability units (they are in log-odds), so for interpretability we report:
+\textit{(a)} odds ratios (OR), and \textit{(b)} average probability changes (average marginal effects), expressed in percentage points (pp), to match the LPM interpretation.
 
-\subsection{Reference Categories}
-Categorical variables are interpreted with respect to reference levels. In our case:
+\subsection{Reference categories}
+Categorical predictors are interpreted relative to reference (baseline) levels. In this analysis:
 \begin{itemize}
     \item \textbf{Education reference:} \textit{2n Cycle}
     \item \textbf{Marital status reference:} \textit{Divorced}
 \end{itemize}
+All reported category effects should be read as differences versus these baselines, holding the remaining predictors constant.
 
-\subsection{Model Selection: Full vs Reduced Model}
-Table~\ref{tab:model_comparison} compares the full model (m4) and the reduced model (m\_step). The reduced model uses fewer predictors while achieving essentially the same explanatory performance, therefore it is preferred for reporting due to parsimony.
+\subsection{Model building and selection}
+We started from a full LPM including demographic, behavioural, spending, and past-campaign variables (m4). To improve interpretability while maintaining explanatory power, we applied stepwise selection based on AIC, obtaining a more parsimonious final model (m\_step).
 
+In parallel, we fit a logistic regression using the same predictor set as the final LPM (glm\_from\_lpm), ensuring a clean comparison between linear and logistic specifications.
+
+
+% ---- Table: model comparison ----
 \begin{table}[H]
 \centering
-\begin{tabular}{lccc}
+\begin{tabular}{lrrrl}
 \toprule
-Model & \# Predictors & Adjusted $R^2$ & Residual SE \\
+Model & \# predictors & AIC & $R^2$ measure & $R^2$ type\\
 \midrule
-m4 & 30 & 0.3065 & 0.300 \\
-m\_step & 23 & 0.3079 & 0.300 \\
+LPM m4 & 30 & 905.4 & 0.307 & Adjusted $R^2$\\
+LPM m\_step & 23 & 894.6 & 0.308 & Adjusted $R^2$\\
+Logit (glm\_from\_lpm) & 23 & 1166.8 & 0.357 & McFadden $R^2$\\
 \bottomrule
 \end{tabular}
-\caption{Comparison between the full model (m4) and the reduced model (m\_step). The reduced model retains similar explanatory power with fewer variables.}
-\label{tab:model_comparison}
+\caption{Model comparison for LPM and logistic regression. AIC is comparable within each model family; $R^2$ measures differ across families and should not be compared one-to-one.}
+\label{tab:model_compare_all}
 \end{table}
 
-\paragraph{Optional visual comparison.}
-Figure~\ref{fig:compare_resid_fitted} provides a side-by-side comparison of the ``Residuals vs Fitted'' diagnostic for m4 and m\_step. Patterns remain similar, showing that selection improves interpretability but does not remove structural limitations of using a linear model with a binary outcome.
+\subsection{Validation strategy}
+Predictive performance is evaluated using a single train/test split with \texttt{set.seed(123)} and a 67/33 proportion. This yields $n_{\text{test}}=670$ observations in the test set, with 106 responders ($\approx$15.8\%). Because the response rate is low, accuracy alone can be misleading; we therefore report precision/recall for the positive class and, for logit, AUC.
+
+\subsection{Linear Probability Model (LPM) results}
+
+\paragraph{Full vs reduced LPM.}
+The stepwise-selected LPM (m\_step) retains essentially the same adjusted $R^2$ as the full model (m4) while using fewer predictors, so it is preferred for reporting.
+A visual comparison of the standard diagnostic ``Residuals vs Fitted'' is shown in Figure~\ref{fig:compare_resid_fitted}.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{Images/compare_resid_fitted_m4_vs_mstep.png}
-\caption{Residuals vs Fitted for the full model (m4) and the reduced model (m\_step).}
+\caption{Residuals vs Fitted for the full model (m4) and the reduced model (m\_step). Similar patterns indicate that stepwise selection improves parsimony but does not remove the structural limitations of a linear model with a binary response.}
 \label{fig:compare_resid_fitted}
 \end{figure}
 
-\subsection{Final Model (m\_step) Performance}
-The final model is statistically significant overall (F-test, $p < 2.2 \times 10^{-16}$) and explains approximately 31\% of the variability in campaign response (Adjusted $R^2 = 0.3079$). This level of explanatory power is reasonable given the binary nature of the dependent variable.
+\paragraph{Interpretable effect sizes (LPM).}
+In an LPM, coefficients can be read as probability changes. For clearer communication, we translate key coefficients into practical changes (Table~\ref{tab:effect_sizes_pp}). For example:
+\begin{itemize}
+    \item \textbf{Recency:} increasing \texttt{Recency} by 10 units reduces response probability by about 2.4 pp.
+    \item \textbf{Online engagement:} each additional web visit increases response probability by about 1.6 pp.
+    \item \textbf{Channel differences:} each additional store purchase is associated with about a 1.5 pp decrease in response probability.
+\end{itemize}
 
-\subsection{Interpretation of Key Effects (m\_step)}
-This section focuses on practically meaningful effects, expressed in \textit{percentage points (pp)} as changes in response probability.
+% ---- Table: effect sizes (LPM vs Logit marginal effects) ----
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Effect (change) & LPM: $\Delta p$ (pp) & Logit: avg. $\Delta p$ (pp)\\
+\midrule
+Recency +10 & -2.4 & -2.2\\
+WebVisits +1 & 1.6 & 1.5\\
+WebPurc +1 & 0.7 & 0.8\\
+StorePurc +1 & -1.5 & -1.0\\
+DealsPurc +1 & 1.3 & 1.1\\
+MeatExp +100 & 2.9 & 2.8\\
+GoldExp +100 & 3.8 & 4.1\\
+\bottomrule
+\end{tabular}
+\caption{Interpretable effect sizes expressed as percentage-point (pp) changes in response probability. Logit effects are average marginal effects (average change in predicted probability when increasing the variable by the stated amount).}
+\label{tab:effect_sizes_pp}
+\end{table}
 
-\paragraph{Previous campaign acceptance (strong behavioural persistence).}
-Previous acceptance of campaigns is the strongest driver in the model. Customers who accepted at least one previous campaign show substantially higher response probability in the current campaign. Depending on the campaign indicator, past acceptance increases response probability by approximately \textbf{11 to 26 percentage points}, highlighting strong behavioural persistence.
-
-\paragraph{Recency (customer activity).}
-Recency has a strong negative association with response probability. An increase of \textbf{10 units} in \texttt{Recency} reduces the probability of response by approximately \textbf{2.4 percentage points}. This indicates that customers who have not interacted recently are less likely to respond.
-
-\paragraph{Household composition.}
-Household context matters: having one additional teenager in the household reduces the probability of response by approximately \textbf{6 percentage points}, suggesting systematic differences in responsiveness across household profiles.
-
-\paragraph{Online engagement and purchasing behaviour.}
-Digital engagement is positively associated with response. Each additional web visit increases the probability of response by approximately \textbf{1.6 percentage points}, and each additional web purchase increases it by about \textbf{0.7 percentage points}. In contrast, each additional store purchase is associated with a decrease of about \textbf{1.5 percentage points} in response probability, reflecting behavioural differences between offline and online customers. Deal-oriented purchasing is positively associated with response: each additional deal purchase increases response probability by around \textbf{1.3 percentage points}.
-
-\paragraph{Spending patterns (interpretable scaling).}
-Spending in some product categories is positively associated with response. For instance, an increase of \textbf{100 monetary units} in \texttt{MeatExp} increases the probability of response by approximately \textbf{2.9 percentage points}. Similarly, an increase of \textbf{100 monetary units} in \texttt{GoldExp} increases response probability by about \textbf{3.8 percentage points}.
-
-\paragraph{Demographics.}
-Education and marital status show meaningful associations. Customers with a PhD exhibit a higher response probability than the reference education group, whereas married and cohabiting customers show lower response probability relative to divorced customers.
-
-\subsection{Key Figures for the Report}
-
-\paragraph{Coefficient plot (global view of effects).}
-Figure~\ref{fig:coefplot} provides a compact overview of estimated effects (with 95\% confidence intervals). It highlights that campaign-acceptance variables and \texttt{Recency} dominate the magnitude of effects in the final model.
+\paragraph{Key LPM figures and diagnostics.}
+We include the following figures to (i) summarize effects and (ii) show limitations of the LPM with binary outcomes:
+\begin{itemize}
+    \item Coefficient plot with 95\% CI (Figure~\ref{fig:coefplot_lpm})
+    \item Distribution of fitted values (Figure~\ref{fig:fitted_dist})
+    \item Residual diagnostics: Residuals vs Fitted, Q--Q plot, and Cook's distance (Figures~\ref{fig:residuals_fitted}, \ref{fig:qq_plot}, \ref{fig:cook})
+\end{itemize}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{Images/coefplot_m_step.png}
-\caption{Final LPM coefficients (m\_step) with 95\% confidence intervals. Effects are interpreted as changes in $P(\text{Response}=1)$.}
-\label{fig:coefplot}
+\caption{Final LPM coefficients (m\_step) with 95\% confidence intervals. Each coefficient is an additive effect on $P(\text{Response}=1)$.}
+\label{fig:coefplot_lpm}
 \end{figure}
-
-\paragraph{Distribution of fitted values (LPM limitation).}
-Figure~\ref{fig:fitted_dist} shows the distribution of fitted values. Because the model is linear, fitted values may fall outside the $[0,1]$ range, illustrating a known limitation of the LPM when modelling binary outcomes.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Images/fitted_distribution_m_step.png}
-\caption{Distribution of fitted values from the LPM (m\_step). Vertical dashed lines mark 0 and 1.}
+\caption{Distribution of fitted values from the LPM (m\_step). Dashed lines indicate 0 and 1; values outside $[0,1]$ illustrate the LPM limitation for binary outcomes.}
 \label{fig:fitted_dist}
 \end{figure}
-
-\paragraph{Residuals vs Fitted (m\_step).}
-Figure~\ref{fig:residuals_fitted} displays the typical band structure produced by a binary response, and indicates heteroscedasticity, which is expected under an LPM.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Images/residuals_fitted_m_step.png}
-\caption{Residuals versus fitted values for the final model (m\_step).}
+\caption{Residuals vs fitted values for the final LPM (m\_step). The band structure is expected with a binary response. The non-constant spread indicates heteroscedasticity (a known LPM issue).}
 \label{fig:residuals_fitted}
 \end{figure}
-
-\paragraph{Q-Q plot of residuals.}
-Figure~\ref{fig:qq_plot} shows deviations from normality, especially in the tails. This behaviour is consistent with the binary outcome and supports that classical linear-regression assumptions are not fully satisfied.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Images/qq_plot_m_step.png}
-\caption{Q-Q plot of residuals for the final model (m\_step).}
+\caption{Q--Q plot of residuals for the final LPM (m\_step). Strong deviations from the diagonal, especially in the tails, reflect non-normal residuals, which is expected for a binary outcome.}
 \label{fig:qq_plot}
 \end{figure}
-
-\paragraph{Influential observations (Cook's distance).}
-Figure~\ref{fig:cook} highlights a small number of influential observations. Such points may disproportionately affect coefficient estimates and should be considered when interpreting results.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Images/cooks_distance_m_step.png}
-\caption{Cook's distance for the final model (m\_step).}
+\caption{Cook's distance for the final LPM (m\_step). A small number of observations have higher influence on fitted coefficients.}
 \label{fig:cook}
 \end{figure}
-
-\paragraph{Recency effect visualization.}
-Figure~\ref{fig:recency} visually confirms the negative association between \texttt{Recency} and response probability described above.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{Images/response_vs_recency.png}
-\caption{LPM fit for \texttt{Response} vs \texttt{Recency}.}
+\caption{Response vs Recency with an LPM smooth. The negative slope visually supports that less recent customers have lower response probability.}
 \label{fig:recency}
 \end{figure}
 
-\subsection{Limitations}
-Although the LPM is interpretable, it has well-known limitations for binary outcomes: fitted values may fall outside $[0,1]$, residuals are heteroscedastic, and normality assumptions are violated. Additionally, influential observations may affect coefficient stability. These limitations motivate the use of logistic regression as a more appropriate model for binary response prediction and inference.
+\subsection{Logistic Regression (Logit) results}
+
+\paragraph{Why logit is better suited to a binary outcome.} 
+Logistic regression models the log-odds of responding as a linear function of predictors and guarantees predicted probabilities in $[0,1]$. For interpretability, we summarize logit results in two ways:
+\begin{itemize}
+    \item \textbf{Odds ratios (OR):} multiplicative effects on the odds of responding (Figure~\ref{fig:coefplot_logit_or}).
+    \item \textbf{Average probability changes (pp):} average marginal effects, comparable to LPM interpretations (Table~\ref{tab:effect_sizes_pp} and Table~\ref{tab:campaign_effects_logit}).
+\end{itemize}
+
+\paragraph{Campaign history is the strongest driver.}
+Logit marginal effects show that switching a previous-campaign acceptance indicator from 0 to 1 increases the predicted probability of response by roughly 12--21 pp on average (Table~\ref{tab:campaign_effects_logit}). This indicates behavioural persistence: customers who responded before are much more likely to respond again.
+
+% ---- Table: campaign acceptance effects (logit marginal effects) ----
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+\toprule
+Campaign accepted previously (0$\to$1) & Logit: avg. $\Delta p$ (pp)\\
+\midrule
+Campaign 1 & 13.5\\
+Campaign 2 & 21.0\\
+Campaign 3 & 20.6\\
+Campaign 4 & 11.6\\
+Campaign 5 & 20.6\\
+\bottomrule
+\end{tabular}
+\caption{Average marginal effect of having accepted each previous campaign (binary indicator changing from 0 to 1) on the predicted probability of responding.}
+\label{tab:campaign_effects_logit}
+\end{table}
+
+\paragraph{Logit coefficient overview and ROC curve.}
+Figure~\ref{fig:coefplot_logit_or} shows odds ratios with 95\% confidence intervals. Values above 1 indicate increased odds of response, and values below 1 indicate decreased odds. Figure~\ref{fig:roc_logit} shows the ROC curve on the test set (single train/test split, \texttt{set.seed(123)}), with an AUC of approximately 0.85, indicating strong discrimination between responders and non-responders.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Images/coefplot_logit_from_lpm_or.png}
+\caption{Logistic regression (glm\_from\_lpm): odds ratios with 95\% confidence intervals. OR $>$ 1 increases odds of response; OR $<$ 1 decreases odds.}
+\label{fig:coefplot_logit_or}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{Images/roc_logit.png}
+\caption{ROC curve for logistic regression on the test split. The AUC of approximately 0.85 indicates strong discrimination.}
+\label{fig:roc_logit}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Images/pred_distribution_logit_from_lpm.png}
+\caption{Distribution of predicted probabilities from logistic regression (glm\_from\_lpm).}
+\label{fig:logit_pred_dist}
+\end{figure}
+
+\subsection{Predictive performance on the test set}
+Table~\ref{tab:test_perf} compares LPM and logistic regression on the same train/test split using a 0.5 threshold. Logistic regression achieves higher recall while maintaining strong precision. Note that a naive classifier that always predicts ``no response'' would already achieve about 84\% accuracy due to class imbalance. Therefore, accuracy alone is not informative in this setting, and recall/precision (and AUC for logit) are essential to assess performance.
+
+
+% ---- Table: test performance ----
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Model (test set) & Accuracy & Recall (TPR) & Precision & AUC\\
+\midrule
+LPM (threshold 0.5) & 0.870 & 0.330 & 0.686 & --\\
+Logit (threshold 0.5) & 0.894 & 0.519 & 0.733 & 0.852\\
+\bottomrule
+\end{tabular}
+\caption{Predictive performance on the held-out test set using a 0.5 threshold. Because $P(\text{Response}=1)\approx 0.15$, alternative thresholds may be more appropriate depending on the business objective (e.g., prioritize recall vs precision).}
+\label{tab:test_perf}
+\end{table}
+
+\subsection{Threshold selection and targeting value (Lift/Gains)}
+Because the response rate is low ($\approx 15\%$), the default decision threshold of 0.5 is conservative. We therefore compute test-set metrics across a grid of thresholds (0.00--1.00) and report:
+(i) the threshold that maximizes F1 (balancing precision and recall), and
+(ii) the threshold that maximizes Youden's $J$ (maximizing TPR+TNR-1).
+Figure~\ref{fig:thr_pr} summarizes precision/recall as a function of the threshold, and Figure~\ref{fig:thr_f1} shows the F1 curve.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Images/precision_recall_vs_threshold.png}
+\caption{Logit (test): precision and recall as a function of the decision threshold. Lower thresholds increase recall at the cost of precision.}
+\label{fig:thr_pr}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Images/f1_vs_threshold.png}
+\caption{Logit (test): F1 score across thresholds. The maximum indicates the best precision--recall trade-off under the F1 criterion.}
+\label{fig:thr_f1}
+\end{figure}
+
+To quantify targeting value, we compute lift and gains on the test set by ranking customers by predicted probability. Figure~\ref{fig:gains} shows the cumulative fraction of responders captured when targeting the top-scored customers, compared to random targeting (diagonal). Figure~\ref{fig:lift} reports lift by decile.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Images/gains_chart_logit_test.png}
+\caption{Gains chart (test): cumulative responders captured when targeting customers from highest to lowest predicted probability.}
+\label{fig:gains}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Images/lift_chart_logit_test.png}
+\caption{Lift chart (test): response lift by decile (decile response rate divided by overall response rate).}
+\label{fig:lift}
+\end{figure}
+
+\subsection{Limitations and practical notes}
+\begin{itemize}
+    \item \textbf{LPM inference:} because heteroscedasticity is expected with a binary outcome, it is standard to report robust (heteroscedasticity-consistent) standard errors for LPM coefficients (computed in the accompanying script). Core conclusions remain unchanged under robust SE.
+    \item \textbf{Stepwise selection:} stepwise AIC improves parsimony, but it is data-driven and may be unstable. For stronger evidence, validate with cross-validation or a separate validation set.
+    \item \textbf{Threshold choice:} because the response rate is only about 15\%, a 0.5 threshold is conservative. In practice, the threshold should be tuned depending on business goals (e.g., maximize recall to contact more potential responders, or maximize precision to reduce marketing costs).
+    \item \textbf{Probability calibration:} while lift and gains are appropriate for ranking customers, if predicted probabilities were to be used directly for budgeting or expected-value calculations, calibration diagnostics (e.g., calibration curves or Brier score) could be considered.
+\end{itemize}
 
 \subsection{Conclusion}
-The linear regression analysis identifies previous campaign acceptance, customer recency, online engagement, and selected household/demographic and spending variables as key drivers of campaign response. The LPM provides a clear and interpretable baseline, and diagnostic analysis supports transitioning to logistic regression for a more suitable modelling framework.
+Both models identify the same main drivers of campaign response: past campaign acceptance, customer recency, online engagement, and selected spending and household variables.
+The LPM provides a simple baseline with very direct coefficient interpretation, while logistic regression is theoretically more appropriate for a binary outcome and offers better predictive behaviour (probabilities in $[0,1]$ and stronger test recall at the same threshold).
+For a complete and robust analysis, it is recommended to report LPM results with robust standard errors \emph{and} include logistic regression results (odds ratios and/or marginal effects).
