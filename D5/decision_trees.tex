@@ -1,1 +1,64 @@
 \section{Decision Trees}
+
+While complex models like Neural Networks offer raw power, they often lack transparency. To bridge the gap between predictive accuracy and business interpretability, we deployed a Decision Tree. This model creates explicit "If-Then" rules that marketing managers can understand and validate intuitively.
+
+\subsection{Performance Analysis}
+The Decision Tree performance on the test set ($N=609$) was exceptional, surpassing expectations for a single-tree model.
+
+\subsubsection{Key Metrics}
+Using an optimized decision threshold of 0.299, the model achieved:
+\begin{itemize}
+    \item \textbf{AUC (0.941):} An outstanding result. The model ranks customers with extremely high precision, effectively separating buyers from non-buyers.
+    \item \textbf{Sensitivity (89.3\%):}
+    \[ \frac{83}{83 + 10} = 0.8925 \]
+    This is the star metric. The tree successfully identified 89\% of all active buyers (83 out of 93). Compared to the Naive Bayes, this model is far superior for lead generation.
+    \item \textbf{Accuracy (88.8\%):} It maintains high overall correctness while being aggressive enough to capture sales.
+\end{itemize}
+
+\subsection{Strategic Insights "Golden Rules"}
+One of the primary advantages of this model is the ability to visualize the decision logic. Figure \ref{fig:dtree_viz} displays the actual pruned tree structure.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{DTree.png}
+    \caption{Business Rules Tree (Buyer Profile)}
+    \label{fig:dtree_viz}
+\end{figure}
+
+By analyzing the splits in the tree, we extracted the following "Golden Rules" for the marketing team:
+\begin{itemize}
+    \item \textbf{The "Sure Thing" Segment:}
+    If \texttt{EngagementIndex} $\ge 34$ AND \texttt{PropensityScore} $\ge 0.19$, the probability of purchase jumps to nearly 88\%. This is the prime target audience.
+    \item \textbf{The "Lost Cause" Segment:}
+    If \texttt{EngagementIndex} $< 34$ AND \texttt{CustomerTenure} $< 8.1$ years AND \texttt{WineExp} $< 21$, the probability of purchase is effectively 0\%. These customers should not be contacted to save budget.
+\end{itemize}
+
+\subsection{Driver Analysis}
+Figure \ref{fig:dtree_imp} confirms what drives these decisions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{influentialVariablesDTree.png}
+    \caption{Top Influential Variables (Gini Importance)}
+    \label{fig:dtree_imp}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Dominance of Engagement:} The \texttt{EngagementIndex} is by far the most critical predictor. A highly engaged customer is almost always a better lead than a wealthy but disengaged one.
+    \item \textbf{Propensity Score:} The second most important feature, validating that our previous propensity modeling efforts were successful.
+\end{itemize}
+
+\subsection{Decision Boundary Visualization}
+To visualize how the model separates the classes, we plotted the decision surface (Figure \ref{fig:dtree_bound}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{heatmapDTree.png}
+    \caption{Decision Tree Boundary (Rectangular Splits)}
+    \label{fig:dtree_bound}
+\end{figure}
+
+Unlike the Naive Bayes heatmap, the Decision Tree creates sharp, rectangular regions. The distinct yellow-to-purple transition at \texttt{EngagementIndex} $\approx 35$ visually confirms the threshold we found in the tree structure. This sharpness indicates that the model has found a very specific, hard cutoff that defines a "Buyer," which makes for easy policy implementation.
+
+\subsection{Conclusion}
+The Decision Tree is a strong contender for the champion model. It combines High Sensitivity (89\%)—crucial for revenue—with **perfect interpretability. It tells us exactly \textit{who} to call (High Engagement) and \textit{why}.
