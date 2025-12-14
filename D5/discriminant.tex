@@ -1,6 +1,63 @@
 \section{Discriminant Models}
 
 \subsection{Naive Bayes Classifier}
+This algorithm applies Bayes' Theorem with a strong assumption of independence between features, allowing us to explicitly observe how probability distributions shape the decision boundary.
+
+\subsubsection{Methodological Approach}
+We implemented two distinct variations using the \texttt{naivebayes} library to test different distributional assumptions:
+
+\begin{itemize}
+    \item \textbf{Gaussian Naive Bayes:} Assumes that numerical features (like \texttt{Income} or \texttt{WineExp}) follow a strict Normal (Bell curve) distribution.
+    \item \textbf{Kernel Density Estimation (KDE):} A non-parametric approach that learns the actual shape of the data distribution, allowing for "weird" or multi-modal shapes that are closer to reality.
+\end{itemize}
+
+\subsubsection{Model Performance Analysis}
+The models were evaluated on the test set ($N=609$). The results highlight significant limitations in the algorithm's ability to handle this specific transactional dataset.
+
+\subsubsection{Standard Gaussian Failure}
+The standard model performed poorly, achieving an accuracy of only 81.44\%.
+\begin{itemize}
+    \item \textbf{The "No Information" Problem:} The No Information Rate (NIR)—simply guessing "No" for everyone—was 84.73\%. 
+    \item \textbf{Result:} Since the model's accuracy (81.44\%) is \textit{lower} than the NIR, the Gaussian model effectively performs worse than a random guess. This confirms that customer spending behavior does \textit{not} follow a normal distribution; forcing this assumption introduced significant error.
+\end{itemize}
+
+\subsubsection{Kernel Density Results (KDE)}
+By switching to Kernel Density Estimation, the model adapted better to the real data shape, but revealed a critical flaw for our business goal.
+
+\begin{itemize}
+    \item \textbf{Accuracy (87.4\%):} 
+    \[ \frac{499 + 33}{609} = 0.8736 \]
+    The KDE model successfully surpassed the NIR baseline, indicating some predictive power.
+    
+    \item \textbf{Specificity (96.7\%):}
+    The model became extremely precise at rejecting non-buyers, generating only 17 False Positives. It is very "safe."
+    
+    \item \textbf{Sensitivity (35.5\%) - The Dealbreaker:}
+    \[ \frac{33}{33 + 60} = 0.355 \]
+    Despite high precision, the model missed nearly **65\%** of the actual buyers (60 False Negatives). For a revenue-focused campaign, missing two-thirds of the target audience is unacceptable.
+\end{itemize}
+
+\subsubsection{Decision Landscape Visualization}
+Figure \ref{fig:nb_heatmap} illustrates the root cause of the model's struggle compared to tree-based methods.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{Images/heatmapNaive.png}
+    \caption{Naive Bayes Decision Landscape: The "Blurry" Boundary}
+    \label{fig:nb_heatmap}
+\end{figure}
+
+The heatmap reveals a smooth, diffuse probability gradient (the dark blue to yellow zones). Unlike the sharp, rectangular decision boundaries seen in other predictors, Naive Bayes creates "blurry" transitions.
+
+\subsubsection{Diagnostic: The Independence Trap}
+The smooth transitions are a symptom of the \textbf{Independence Assumption}. 
+\begin{itemize}
+    \item The model treats variables like \texttt{TotalExp} (Total Spend) and \texttt{WineExp} (Wine Spend) as completely unrelated independent events.
+    \item In reality, our data contains high multicollinearity. Because Naive Bayes cannot capture the interaction effects between correlated variables, it fails to isolate the specific "high-propensity pockets" that the Random Forest found, resulting in a conservative model that defaults to "No" too often.
+\end{itemize}
+
+\subsubsection{Conclusion}
+While the Kernel Density Naive Bayes improved upon the Gaussian baseline, we recommend \textbf{discarding} it for the final deployment. The gain in Specificity does not justify the massive loss in potential revenue caused by its low Sensitivity (35.5\%).
 
 \subsection{k-Nearest Neighbour}
 
