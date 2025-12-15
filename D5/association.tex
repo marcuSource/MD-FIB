@@ -9,8 +9,6 @@ To perform our association rule analysis, we have decided to use the following c
 \begin{enumerate}
 \item \textbf{Response}: Represents the acceptance of the last campaign. The purpose of the analysis is to find which combinations of attributes increase the probability of success ($\texttt{Response} = \texttt{Yes}$).
 
-\item \textbf{CustomerSegment}: This variable serves as a summary of the client's overall behavior (Cluster 1, 2, or 3). This inclusion allows us to verify whether success or failure is concentrated within a predefined segment (Low, Mid, High Value). 
-
 \item \textbf{IncomeSegment}: This variable is the principal interpreter of PC1 (Value). It differentiates clients based on their economic capacity (Low, Medium, High). This variable is quite important to consider as it is the most discriminating factor in the dataset.
 
 \item \textbf{PreferredChannel}: In the PCA, we observed that the channel defines the behavior; that is, the "Discount/Web" client is very different from the traditional "Store/Catalog" client. For this reason, we can use it to determine where to launch the campaign. 
@@ -19,44 +17,53 @@ To perform our association rule analysis, we have decided to use the following c
 
 \item \textbf{MaritalSts}: This variable provides the social context. Although many profiles were similar, we were able to find, for instance, that the "\textit{Widow}" status was unexpectedly associated with high-income and traditional clients. 
 
-\item \textbf{Education}: Actúa como un indicador indirecto del nivel de ingresos y sofisticación. Vuestro análisis mostró que el nivel "Básico" estaba fuertemente ligado al segmento de bajo valor, lo cual ayuda a las reglas a filtrar quién no va a comprar.
-
-Además, hemos decidido discretizar las siguientes:
-
-\item \textbf{Age}: Esta variable es representante del PC3 (Madurez). Al discretizarla, podemos detectar si la campaña funciona mejor en segmentos generacionales específicos. Para discretizarla hemos decidido separar las edades en 3 segmentos : EXPLICAR!!!!!!!
-
-\item \textbf{WineExp}: Dado que el vino es el producto estrella, la podemos utilizar para distinguir entre quién gasta "poco" y quién gasta "mucho". En resumen, es vital para encontrar nichos de rentabilidad.
-
-EXPLICAR COMO SE HA DISCRETIZADO    
-\item \textbf{Teenhome}: Fue la variable más influyente del PC2. Su presencia cambia radicalmente la forma de comprar: \textbf{fuerza la búsqueda de ofertas} y el uso de la web, siendo clave para predecir el comportamiento digital. Es fundamental tratarla como factor para ver reglas como "Si tiene adolescentes -> Busca ofertas". 
-EXPLICAR?
-\item \textbf{Kidhome}: En nuestro análisis inicial pudimos confirmar que tener niños pequeños reduce el presupuesto para lujos (como el vino o el oro). Es fundamental para explicar por qué ciertos clientes, aunque quieran, no gastan mucho. 
-eXPLICAR?
+\item \textbf{Education}: It acts as an indirect indicator of income level and sophistication. Previously, we were able to observe in the first deliverable that the "Basic" level was strongly linked to the low-income segment. This can help us filter who is not going to buy.
 \end{enumerate}
-En resumen, esta selección de variables cubre las tres dimensiones halladas en el PCA:
+
+Apart from these, we have decided to discretize the following variables to be able to consider them:
 
 \begin{enumerate}
-    \item \textbf{Dimensión Valor:} Cubierta por \verb|IncomeSegment|, \verb|WineExp| y \verb|CustomerSegment|.
-    \item \textbf{Dimensión Ciclo de Vida:} Cubierta por \verb|Teenhome|, \verb|Kidhome| y \verb|PreferredChannel|.
-    \item \textbf{Dimensión Demográfica:} Cubierta por \verb|Age|, \verb|Education| y \verb|MaritalSts|.
+\item \textbf{Age}: This variable represents PC3 (Maturity). By discretizing it, we can detect whether the campaign works better across specific generational segments. To discretize it, we have decided to separate the ages into three segments:
+
+\begin{itemize}   
+    \item \textbf{Young (<= 35 years):} Customers in the early stages of their career/professional life.
+    \item \textbf{Adult (36 - 55 years):} Customers with consolidated income, often with higher purchasing power.
+    \item \textbf{Senior (55 < years):} Customers who are approaching or are in the retirement phase.
+\end{itemize}
+
+
+\item \textbf{WineSegment}: Given that wine is the star product, we can use this variable to distinguish between those who spend 'little' and those who spend 'a lot.' In short, it is vital for finding profitability niches. 
+
+To discretize it, we used the WineExp variable and discretized it by quantiles (terciles) to obtain three segments of similar size.
+
+\item \textbf{Teenhome}: This was the most influential variable of PC2. Its presence radically changes the way customers shop because it forces a search for deals. Since the number of teenagers at home is never more than five in the best-case scenario, we can discretize it easily into groups with the same number of teenagers.
+
+\item \textbf{HasChildren}: In our initial analysis, we were able to confirm that having young children reduces the budget for luxuries (such as wine or gold). It is fundamental to explain why certain customers, even if they want to, do not spend much. To use this variable, we have converted the response into the binary "Yes" or "No".
 \end{enumerate}
-Al utilizar estas variables específicas, garantizamos que las reglas generadas tengan una explicación de negocio coherente con el análisis previo.
+In summary, this selection of variables covers the three dimensions found in the PCA:
+
+\begin{enumerate}
+    \item \textbf{Value Dimension:} Covered by \verb|IncomeSegment| and \verb|WineSegment|.
+    \item \textbf{Life Cycle Dimension:} Covered by \verb|Teenhome|, \verb|HasChildren| and \verb|PreferredChannel|.
+    \item \textbf{Demographic Dimension:} Covered by \verb|Age|, \verb|Education| and \verb|MaritalSts|.
+\end{enumerate}
+By using these specific variables, we ensure that the generated rules have a business explanation that is coherent with the previous analysis.
 
 \subsection{Choosing algorithm: Apriori}
-Antes de obtener las reglas de asociación, hemos debatido sobre què algoritmo  utilizar para encontrarlas. 
+Before obtaining the association rules, we debated which algorithm to use to find them.
 
-Dado que los clientes que aceptan una campaña son minoría en nuestra base de datos, nuestro objetivo es encontrar pequeños nichos de clientes con las mismas características que sean propensos a aceptar la última campaña de marketing. Por este motivo hemos decidido utilizar el algoritmo \textbf{Apriori}, ya que está diseñado para generar y evaluar reglas de asociación basándose en métricas de dirección como la \textit{Confianza} y el \textit{Lift}.
+Given that customers who accept a campaign are a minority in our database, our goal is to find small niches of customers with the same characteristics who are likely to accept the latest marketing campaign. For this reason, we have decided to use the Apriori algorithm, as it is designed to generate and evaluate association rules based on directional metrics such as Confidence and Lift.
 
-Por otra parte, descartamos el uso del algoritmo Eclat ya que este se especializa en la detección de conjuntos frecuentes mediante intersecciones verticales, por lo que no se ajusta a nuestros intereses. 
+Conversely, we discard the use of the Eclat algorithm, as it specializes in the detection of frequent itemsets through vertical intersections, which does not align with our interests.
 
 \subsection{Evaluation}
-Una vez escogido algoritmo, tenemos que ajustar el soporte y la confianza para poder encontrar las reglas que más nos interesan.
+Once the algorithm has been chosen, we need to adjust the support and confidence to find the rules that interest us most.
 
-Al buscar grupos específicos de clientes hemos definido el Soporte a 1\% (20 personas aprox).
+Since we are looking for specific groups of customers, we have set the Support to 1\% (20 people aprox.).
 
-Por otra parte, dado que el porccentage de gente que acepta la campaña (Response = Yes) es de un 15\%, cualquier Confianza superior a 15\% ya serà mejor que el promedio. Por esta razón, hemos decidido establecer la confianza al \textbf{30\%}, porque \textbf{duplicaria} la eficiencia actual de la campaña. 
+Furthermore, given that the percentage of people who accept the campaign (Response = Yes) is 15\%, any Confidence level superior to 15\% would already be better than the average. For this reason, we decided to set the Confidence at 30\%, because it would double the current efficiency of the campaign.
 
-Inicialmente ejecutamos esta línea en R.
+Initially, we ran those lines in R.
 \begin{lstlisting}
 rulesApriori <- apriori(db_transaciones, 
                 parameter = list(support = 0.01, 
@@ -64,15 +71,16 @@ rulesApriori <- apriori(db_transaciones,
                                 minlen = 2))
 summary(rulesApriori)
 \end{lstlisting}
-La salida resultante fue:
+
+The resulting output was:
 
 \includegraphics[width=1.0\textwidth]{Images/AprioriOutput0.png}
 
-A partir de esta observamos que se encontraron un total de 174.027 reglas. Esta cantidad de reglas es demasiado compleja como para analizarla correctamente. Por otra parte, el lift medio (1.4575) indica que el promedio de las reglas apenas mejora un resultado al azar.
+From this, we observed that a total of 81,476 rules were found. This quantity of rules is far too complex to analyze correctly. Furthermore, the mean lift (1.3979) indicates that the average rule barely achieves a result better than random.
 
-Sin embargo, cabe destacar que el lift máximo (6.799) indica que dentro de esas 170.000 reglas hay "pepitas de oro" muy valiosas, pero están escondidas entre miles de reglas irrelevantes.
+However, it is worth noting that the maximum lift (6.7991) indicates that within those 80,000 rules, there are very valuable 'gold nuggets,' but they are hidden among thousands of irrelevant rules.
 
-Al tener tanto exceso de ruido y una complejidad difícil de gestionar, hemos decidido apuntar directamente a los que han aceptado la campaña con la siguiente línea de codigo:
+Given such an excess of noise and a complexity difficult to manage, we decided to target directly those who have accepted the campaign with the following line of code:
 
 \begin{lstlisting}
 rulesApriori <- apriori(dtrans, 
@@ -83,23 +91,21 @@ rulesApriori <- apriori(dtrans,
 summary(rulesApriori)
 \end{lstlisting}
 
-De esta forma obtenemos estos mejores resultados:
+In this way, we obtain these better results:
 
 \includegraphics[width=1.0\textwidth]{Images/AprioriOutput1.png}
 
-Tras este segundo análisis, hemos reducido las reglas de 174.027 a 702 lo cual es lo suficientemente amplio para encontrar varios perfiles distintos de clientes.
+Following this second analysis, we have reduced the rules from 81,476 to 313, which is broad enough to find several distinct customer profiles.
 
-Al apuntar directamente a los resultados positivos, vemos que el lift medio (2.615) mejora el resultado inicial ya que las reglas mejoran más del doble.
+Using direct target to positive results, we see that the average lift (2.615) improves the initial result, as the rules are more than twice as efficient as the average.
 
-Por otra parte el lift máxmimo (4.408) a pesar de ser menor que el anterior, sigue siendo un buen resultado.
+Furthermore, the maximum lift (4.301), despite being lower than the previous one, is still a very good result.
 
-Si nos fijamos en el valor de la confianza, vemos que va de 30-67\%. Aunque a primera vista no sea un resultado tan alto, recordemos que el porcentaje de éxito de la variable Response es del 15\% por lo que, en el peor de los casos, estamos encontrando nichos que duplican ese porcentaje.
+If we look at the confidence value, we see that it ranges from 30\% to 65\%. Although this may not seem very high at first glance, let's remember that the success rate of the Response variable is 15\%. Therefore, in the worst-case scenario, we are finding niches that double that percentage.
 
-Por último, el sporte y el count nos pueden ayudar a determinar el tamaño de nuestro nicho. Al oscilar entre 0.01 y 0.07 vemos que el grupo de clientes que nos interesa es de 21-150 personas.
+Finally, the support and count can help us determine the size of our niche. Oscillating between 0.01 and 0.07, we see that the customer group that interests us ranges from 21 to 139 people.
 
-Sin embargo, cabe destacar que el lift máximo (6.799) indica que dentro de esas 170.000 reglas hay "pepitas de oro" muy valiosas, pero están escondidas entre miles de reglas irrelevantes.
-
-Visualmente podemos ver estas relaciones co ......
+Visually, we can see these rules through these plots:
 
 \begin{figure}[htbp]
     \centering
@@ -109,23 +115,127 @@ Visualmente podemos ver estas relaciones co ......
     \caption{Scatter plot NOMBRE PROVISIONAL}
 \end{figure}
 
-Si nos fijamos en el order, vemos que las más repetidas son las de orden 4-8
+From these results, we can clearly observe that both the lift and the confidence align with the expected outcomes. We see that most associations with high lift and high confidence have a very small support, which makes sense since these types of customers form a very small group of people.
+
+Furthermore, we notice that the most abundant orders (rule lengths) have between 4 and 6 antecedents. This means that a positive instance of Response is not exclusively related to 2 or 3 simple rules, but rather is formed by a more complex group of conditions.
+
+To find these specific rules, we decided to separate the top 10 with this code snippet:
+
+\begin{lstlisting}
+rulesFiltered <- head(sort(rulesApriori, by = "lift"), 10)
+plot(rulesFiltered, method = "paracoord", measure = "confidence", 
+     control = list(reorder = TRUE))
+\end{lstlisting}
+
+After executing it, we obtain the following parallel coordinates plot, which serves to break down the complexity of the rules and allows us to visualize which 'variables' are combined and in what order to achieve the final result (Response=Yes).
 
 \includegraphics[width=1.0\textwidth]{Images/ParallelCoordinates.png}
-Para poder ver las 
-Al observarlas con el grafico de coordenadas paralelas vemos que ...
 
-De esta manera hemos descubierto que las reglas de asociacion que nos permiten mejorar nuestras futuras campañas de marketing son:
+Analyzing the trajectories, we see that this graph reaffirms that the success of the campaign does not depend on a single isolated variable, but on the alignment of multiple factors.
+
+The probability of purchase (rhs) only spikes when these 4-5 factors are aligned. This confirms the need for precise, non-generalist segmentation.
+
+The conjunction of these rules reveals the characteristics of the perfect customer profile we are looking for.
+
+\begin{enumerate} 
+\item \textbf{Value Dimension:} The perfect customer has high economic capacity, explicitly defined by \verb|IncomeSegment = High| and a clear predisposition to spending with \verb|WineSegment = Wine_High|. 
+
+\item \textbf{Life Cycle Dimension:} The perfect customer is notable for the absence of dependent children, marked by \verb|Teenhome = 0| and \verb|HasChildren = No|, which frees up their disposable income.
+
+\item \textbf{Demographic Dimension:}The perfect customer is single and has a high level of education, indicated by \verb|Education = Graduation| and \verb|MaritalSts = Single|.
+\end{enumerate}
+
+Finally, we take a look at the top 10 rules with the best lift and the graph to confirm this.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Top 10 Additional Association Rules for \textbf{Response = Yes}}
+    \label{tab:reglas_apriori_grid_2}
+    \footnotesize % Fuente un poco más pequeña
+    
+    % Aumentamos el espacio entre filas para que no se vea pegado a las líneas
+    \renewcommand{\arraystretch}{1.3}
+    
+    % Definición de columnas con líneas verticales (|)
+    % c: centrada, X: se ajusta al ancho
+    \begin{tabularx}{\textwidth}{|c|X|c|c|c|c|}
+        \hline
+        \textbf{\#} & \textbf{Antecedent (LHS)} & \textbf{Supp.} & \textbf{Conf.} & \textbf{Lift} & \textbf{Count} \\
+        \hline
+        
+        1 & \{Education=Graduation, MaritalSts=Single, Teenhome=0, IncomeSegment=High, WineSegment=Wine\_High\} 
+          & 0.013 & 0.659 & 4.30 & 27 \\ \hline
+          
+        2 & \{Education=Graduation, MaritalSts=Single, HasChildren=No, IncomeSegment=High, WineSegment=Wine\_High\} 
+          & 0.013 & 0.650 & 4.24 & 26 \\ \hline
+          
+        3 & \{Education=Graduation, MaritalSts=Single, Teenhome=0, HasChildren=No, IncomeSegment=High, WineSegment=Wine\_High\} 
+          & 0.013 & 0.650 & 4.24 & 26 \\ \hline
+          
+        4 & \{PreferredChannel=WebPurc, HasChildren=No, IncomeSegment=High, WineSegment=Wine\_High\} 
+          & 0.011 & 0.639 & 4.17 & 23 \\ \hline
+          
+        5 & \{Teenhome=0, PreferredChannel=WebPurc, HasChildren=No, IncomeSegment=High, WineSegment=Wine\_High\} 
+          & 0.011 & 0.639 & 4.17 & 23 \\ \hline
+          
+        6 & \{Education=Graduation, MaritalSts=Single, Teenhome=0, WineSegment=Wine\_High\} 
+          & 0.014 & 0.630 & 4.12 & 29 \\ \hline
+          
+        7 & \{PreferredChannel=WebPurc, HasChildren=No, IncomeSegment=High\} 
+          & 0.012 & 0.625 & 4.08 & 25 \\ \hline
+          
+        8 & \{Teenhome=0, PreferredChannel=WebPurc, HasChildren=No, IncomeSegment=High\} 
+          & 0.012 & 0.625 & 4.08 & 25 \\ \hline
+          
+        9 & \{Education=Graduation, MaritalSts=Single, HasChildren=No, WineSegment=Wine\_High\} 
+          & 0.014 & 0.622 & 4.06 & 28 \\ \hline
+          
+        10 & \{Education=Graduation, MaritalSts=Single, Teenhome=0, HasChildren=No, WineSegment=Wine\_High\} 
+           & 0.014 & 0.622 & 4.06 & 28 \\ \hline
+           
+    \end{tabularx}
+\end{table}
+
+\includegraphics[width=1.0\textwidth]{Images/Grafo.png}
+
+Nota: para mejor visualización consultar el .html
+CAMBIAR FOTO
+
+
+In this way, we have been able to identify which association rules allow us to improve our future marketing campaigns. To explain this clearly, we have divided them into two categories based on their importance.
+
+DECIR QUE AUMENTAN EN X4
+\begin{enumerate}
+\item \textbf{Variables comunes:} Independientemente del perfil, hay dos condiciones innegociables que aparecen en todas las reglas del top.
+
+En primer lugar, que no tenga hijos \textbf{(Teenhome = 0 or HasChildren = No)}, es decir, que la campaña solo funciona si el cliente no tiene la presión económica o el tiempo que suponen los hijos/adolescentes.
+
+En segundo lugar, que posea un alto valor económico. Ya sea a través de \textbf{IncomeSegment=High o WineSegment=Wine_High}, el cliente debe tener capacidad de gasto.
+
+\item \textbf{Arquetipos}: A partir de aquí las reglas se dividen, lo que nos permite identificar dos arquetipos de cliente:
+\begin{itemize}   
+        \item \textbf{Soltero de Alto Potencial de Gasto Discrecional:}
+        Este arquetipo se ve reflejado en las reglas {1, 2, 3, 6, 9, 10} y se caracteriza por estar soltero, tener un alto nivel de estudios y por su facildad de gastar dinero en vino. Para este perfil, el comportamiento de gasto (Wine\_High) es más importante que el ingreso teórico. 
+        
+        Según nuestros resultados, un soltero graduado que gasta mucho en vino es un cliente "top", aunque su nómina no esté clasificada necesariamente como "High". Su comportamiento valida su valor.
+\end{itemize}
+\begin{itemize}   
+        \item \textbf{El Comprador Digital Acomodado:}
+        Este arquetipo se ve reflejado en las reglas {Reglas 4, 5, 7, 8} y se caracteriza por la ausencia de hijos, su alto nivel de ingresos y su preferencia a comprar mediante pedidos web. A diferencia del arquetipo anterior, no influye si el cliente està soltero o graduado.
+        
+        En conclusión, si el cliente tiene ingresos altos, no tiene hijos y prefiere comprar por la Web, aceptará la campaña aunque esté casado o tenga otro nivel educativo. El canal digital es su habilitador.
+\end{itemize}
+\end{enumerate}
+
+\subsection{Conclusiones de estrategias recomendadas}
+Basadonos en nuestro análisis, nuestra recomendación no es hacer una sola campaña, sino una estrategia bifurcada:
 
 \begin{enumerate}
-    \item \textbf{Rule 1:}
-    \item \textbf{Rule 2:}
-    \item \textbf{Rule 3:}
-    \item \textbf{Rule 4:}
-    \item \textbf{Rule 5:}
-    \item \textbf{Rule 6:}
-    ...
+
+    \item \textbf{Estrategia 1:}
+    Esta estrategia tendrá como objetivo a los clientes del primer arquetipo. La finalidad es apuntar a los clientes con mayor gasto en vino con un mensaje que denote exclusividad, recompensa personal y estilo de vida gourmet. 
+    \item \textbf{Estrategia 2:}
+    Esta estrategia tendrá como objetivo a los clientes del segundo arquetipo. Para ello nos centraremos en su canall de preferencia (web), en donde les ofreceremos recomendaciones fáciles, de acceso directo y con productos exclusivos a un clic.
 \end{enumerate}
-Notas: 
-- REVISAR ACCURACYY!!!!!!!!!!!!!
-- Ver parallel coordinates de 5, 10 y 20 y escoger mejor
+
+De esta forma, enfocandonos en estos clientes, tan valiosos podremos incrementar el porcentage de personas que acepten una futura campaña.
