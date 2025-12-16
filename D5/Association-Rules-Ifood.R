@@ -10,28 +10,21 @@ data(Groceries)
 transaccionesG <- Groceries
 
 ## 2.2 IFOOD_ENRICHED ----------------------------------------------------------
-# How to work with associations rules with data matrix
 dd <- read.table("ifood_enriched.csv",header = T, stringsAsFactors = TRUE, sep = ",")
 
 # Aseguramos que las variables son categoricas
-#dd$CustomerSegment <- as.factor(dd$CustomerSegment)
 dd$IncomeSegment   <- as.factor(dd$IncomeSegment)
 dd$PreferredChannel <- as.factor(dd$PreferredChannel)
 dd$PreferredProductCategory <- as.factor(dd$PreferredProductCategory)
-dd$Teenhome <- as.factor(dd$Teenhome) # Importante para reglas de descuentos
+dd$Teenhome <- as.factor(dd$Teenhome)
 
-#Añadimos variables
+#Añadimos variables discretizadas
 dd$Response <- factor(dd$Response, levels = c(0, 1), labels = c("No", "Yes"))
 dd$HasChildren <- factor(dd$HasChildren, levels = c(0, 1), labels = c("No", "Yes"))
-# 1. Discretizar Gasto en Vino (WineExp) -> Clave del PC1 (Valor)
-# Dividimos en 3 niveles (Bajo, Medio, Alto) usando cuantiles para equilibrar
 dd$WineSegment <- cut(dd$WineExp, 
                       breaks = quantile(dd$WineExp, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
                       labels = c("Wine_Low", "Wine_Medium", "Wine_High"), 
                       include.lowest = TRUE)
-
-# 2. Discretizar Edad (Age) -> Clave del PC3 (Madurez)
-# Segmentación por ciclo de vida: Joven (<35), Adulto (35-55), Senior (>55)
 dd$AgeGroup <- cut(dd$Age, 
                    breaks = c(-Inf, 35, 55, Inf), 
                    labels = c("Age_Young", "Age_Adult", "Age_Senior"))
@@ -89,9 +82,9 @@ db_transaciones <- dtrans
 ## 4.1 Apriori Algorithm -------------------------------------------------------
 ### Apply the function (esta tiene demasiadas association rules)
 rulesApriori <- apriori(dtrans, 
-                        parameter = list(supp = 0.01,  # Captura nichos pequeños (>40 personas)
-                                         conf = 0.3,   # Exige el doble de éxito que el promedio
-                                         minlen = 2),  # Evita reglas demasiado complejas de leer
+                        parameter = list(supp = 0.01,
+                                         conf = 0.3,
+                                         minlen = 2), 
                         appearance = list(rhs = "Response=Yes", default="lhs"))
 
 ### Visualitzation the rules
