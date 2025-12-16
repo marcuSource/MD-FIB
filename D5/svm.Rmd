@@ -1,0 +1,268 @@
+---
+title: "Anàlisi SVM - Food Marketing"
+author: "Grup de Data Mining"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    theme: united
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+# CONFIGURACIÓ GLOBAL:
+# 'dev = "png"' força que les imatges siguin PNG
+# 'dpi = 300' fa que tinguin alta resolució (més nítides per al report)
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      dev = "png", 
+                      dpi = 300,
+                      fig.width = 8,
+                      fig.height = 6)
+```
+
+# 1. Preparació de l'Entorn
+
+Carreguem les llibreries necessàries i les dades. Assegura't que l'arxiu `ifood_enriched.csv` està al mateix directori.
+
+```{r libraries}
+# Instal·lació automàtica de paquets si falten
+if(!require(e1071)) install.packages("e1071")
+if(!require(cluster)) install.packages("cluster")
+if(!require(ROCR)) install.packages("ROCR")
+if(!require(ggplot2)) install.packages("ggplot2")
+
+library(e1071)
+library(cluster)
+library(ROCR)
+library(ggplot2)
+
+# Càrrega de dades
+df <- read.csv("ifood_enriched.csv")
+
+# Conversió de variables categòriques a factors (necessari per SVM)
+cols_factors <- c("Education", "MaritalSts", "PreferredProductCategory", 
+                  "PreferredChannel", "IncomeSegment", "Response", 
+                  "CustomerSegment", "Complain", "HasChildren")
+
+df[cols_factors] <- lapply(df[cols_factors], as.factor)
+
+# Assegurem que Income és numèric
+df$Income <- as.numeric(df$Income)
+
+# Eliminem valors nuls (bona pràctica per SVM)
+df <- na.omit(df)
+
+cat("Dades carregades. Dimensions finals:", dim(df))
+```
+
+---
+
+# 2. Classificació Binària: Predicció de 'Response'
+
+L'objectiu és predir si un client acceptarà la campanya (`Response = 1`). 
+
+**Estratègia:**
+1. Eliminem variables que causen *Data Leakage* (`PropensityScore`, `CustomerSegment`).
+2. Apliquem **Pesos de Classe** perquè les dades estan desequilibrades (pocs "Sí").
+3. Utilitzem **Grid Search (Tuning)** per trobar els millors hiperparàmetres.
+
+```{r binary_svm}
+# 1. Selecció de variables (Evitem Data Leakage)
+# Eliminem variables que contenen la resposta o deriven directament d'ella
+vars_leakage <- c("CustomerSegment", "PropensityScore", "EngagementIndex")
+data_bin <- df[ , !(names(df) %in% vars_leakage)]
+
+# 2. Divisió Train/Test
+set.seed(2018)
+index <- 1:nrow(data_bin)
+testindex <- sample(index, trunc(length(index)/3))
+testset <- data_bin[testindex,]
+trainset <- data_bin[-testindex,]
+
+# 3. Càlcul de Pesos per Classes Desequilibrades
+n_no <- sum(trainset$Response == 0)
+n_si <- sum(trainset$Response == 1)
+pes_si <- n_no / n_si 
+cat("Pes aplicat a la classe '1' (Sí):", round(pes_si, 2), "\n")
+
+# 4. Optimització del Model (Tuning)
+# Busquem la millor combinació de Cost i Gamma
+cat("Optimitzant paràmetres (això pot trigar uns segons)...\n")
+tune.bin <- tune(svm, Response ~ ., data = trainset,
+                 kernel = "radial",
+                 ranges = list(
+                   cost = c(1, 10, 100),
+                   gamma = c(0.001, 0.01, 0.1)
+                 ),
+                 class.weights = c("0" = 1, "1" = pes_si))
+
+best_model_bin <- tune.bin$best.model
+print(summary(best_model_bin))
+
+# 5. Predicció i Avaluació
+svm.pred.bin <- predict(best_model_bin, testset[,-which(names(testset) == "Response")])
+t2_bin <- table(Predicted = svm.pred.bin, Actual = testset$Response)
+
+# Mètriques
+accuracy_bin <- sum(diag(t2_bin)) / sum(t2_bin)
+sensibilitat_bin <- t2_bin[2,2] / sum(t2_bin[,2]) # Capacitat de detectar els "Sí"
+
+print("Matriu de Confusió (Response):")
+print(t2_bin)
+cat("\nAccuracy Global:", round(accuracy_bin, 4))
+cat("\nSensibilitat (Detecció de Compradors):", round(sensibilitat_bin, 4))
+```
+
+---
+
+# 3. Classificació Multi-classe: Customer Segment
+
+Predim el segment del client. Aquest model sol tenir molt bons resultats ja que els segments estan ben definits per les variables de comportament.
+
+```{r multiclass_svm}
+# Eliminem la variable Response (futur) per no falsejar
+data_multi <- subset(df, select = -c(Response))
+
+testset_m <- data_multi[testindex,]
+trainset_m <- data_multi[-testindex,]
+
+# Entrenament (Paràmetres estàndard funcionen bé aquí)
+svm.model.multi <- svm(CustomerSegment ~ ., data = trainset_m, 
+                       cost = 100, kernel = "radial", gamma = 0.01)
+
+# Predicció
+svm.pred.multi <- predict(svm.model.multi, testset_m[,-which(names(testset_m) == "CustomerSegment")])
+
+# Avaluació
+t2_multi <- table(Predicted = svm.pred.multi, Actual = testset_m$CustomerSegment)
+errorRate_multi <- 1 - (sum(diag(t2_multi))/sum(t2_multi))
+
+print("Matriu de Confusió (Customer Segment):")
+print(t2_multi)
+cat("\nError Rate:", round(errorRate_multi, 4))
+```
+
+---
+
+# 4. Regressió: Predicció d'Ingressos (Income)
+
+Predim el valor numèric dels ingressos anuals.
+
+```{r regression_svm}
+# Eliminem IncomeSegment ja que es deriva directament de l'Income
+data_reg <- subset(df, select = -c(IncomeSegment))
+
+testset_r <- data_reg[testindex,]
+trainset_r <- data_reg[-testindex,]
+
+# Entrenament SVM per Regressió
+svm.model.reg <- svm(Income ~ ., data = trainset_r, 
+                     cost = 10, kernel = "radial", gamma = 0.1)
+
+# Predicció
+svm.pred.reg <- predict(svm.model.reg, testset_r[,-which(names(testset_r) == "Income")])
+
+# Avaluació
+y <- testset_r$Income
+yp <- svm.pred.reg
+
+mse <- sum((y - yp)^2) / length(y)
+rmse <- sqrt(mse)
+r.square <- 1 - (mse / (sum((y - mean(y))^2) / length(y)))
+
+cat("\nRMSE (Error Mitjà en €):", round(rmse, 2))
+cat("\nR-Squared (Variància Explicada):", round(r.square, 4))
+```
+
+---
+
+# 5. Visualitzacions per al Report
+
+Aquesta secció genera els gràfics clau per interpretar els resultats.
+
+### 5.1 Mapa de Classificació (MDS)
+Visualitzem com l'SVM separa les classes en un espai 2D.
+* **Colors:** Realitat (Vermell=No, Verd=Sí)
+* **Formes:** Predicció (Cercle buit=No, Cercle ple=Sí)
+
+```{r plot_mds}
+# Mostra de 500 punts per claredat
+set.seed(123)
+idx_plot <- sample(1:nrow(testset), min(500, nrow(testset)))
+dades_plot <- testset[idx_plot, ]
+pred_plot <- svm.pred.bin[idx_plot]
+
+# Càlcul de distàncies (Daisy gestiona dades mixtes)
+dist_matrix <- daisy(dades_plot[,-which(names(dades_plot) == "Response")])
+mds_coords <- cmdscale(dist_matrix)
+
+plot(mds_coords, 
+     col = c("red", "green3")[as.numeric(dades_plot$Response)], 
+     pch = c(1, 19)[as.numeric(pred_plot)], 
+     main = "SVM Response: Realitat vs Predicció",
+     xlab = "Dimensió 1", ylab = "Dimensió 2", cex=0.8)
+legend("topright", legend = c("Real: No", "Real: Sí", "Pred: No (Buit)", "Pred: Sí (Ple)"),
+       col = c("red", "green3", "black", "black"), pch = c(19, 19, 1, 19), cex=0.8)
+```
+
+### 5.2 Corba ROC (Qualitat del Model Binari)
+Mostra el balanç entre sensibilitat i falsos positius. Com més amunt a l'esquerra, millor.
+
+```{r plot_roc}
+# Recalculem el model amb 'probability=TRUE' per obtenir la corba
+svm.model.roc <- svm(Response ~ ., data = trainset, 
+                     cost = best_model_bin$cost, 
+                     gamma = best_model_bin$gamma,
+                     class.weights = c("0" = 1, "1" = pes_si),
+                     probability = TRUE)
+
+prob_pred <- predict(svm.model.roc, testset, probability = TRUE)
+probs <- attr(prob_pred, "probabilities")[,2] # Probabilitat de ser "1"
+
+pred_rocr <- prediction(probs, testset$Response)
+perf_rocr <- performance(pred_rocr, "tpr", "fpr")
+
+plot(perf_rocr, colorize=TRUE, lwd = 3, main = "Corba ROC - SVM Classificació")
+abline(a=0, b=1, lty=2, col="gray")
+```
+
+### 5.3 Anàlisi d'Errors de Regressió (Income)
+Comprovem on s'equivoca el model de predicció d'ingressos.
+
+```{r plot_residuals, fig.width=10}
+par(mfrow=c(1,2))
+
+# Predicció vs Realitat
+plot(y, yp, main = "Income: Predicció vs Realitat", 
+     xlab = "Ingressos Reals", ylab = "Predicció SVM", 
+     col = rgb(0,0,1,0.3), pch=19)
+abline(0, 1, col="red", lwd=2)
+
+# Residus
+residus <- y - yp
+plot(y, residus, main = "Residus (Errors)",
+     xlab = "Ingressos Reals", ylab = "Error (€)",
+     col = rgb(1,0,0,0.3), pch=19)
+abline(h=0, col="blue", lwd=2)
+
+par(mfrow=c(1,1))
+```
+
+### 5.4 Interpretació de Negoci (Boxplots)
+Relació entre variables clau i la resposta, per entendre el comportament dels compradors.
+
+```{r plot_boxplots, fig.width=10}
+par(mfrow=c(1,2))
+
+boxplot(Income ~ Response, data = df, 
+        main = "Ingressos vs Resposta",
+        col = c("salmon", "lightgreen"), ylab = "Ingressos Anuals")
+
+boxplot(Recency ~ Response, data = df, 
+        main = "Dies des d'última compra vs Resposta",
+        col = c("salmon", "lightgreen"), ylab = "Dies (Recency)")
+
+par(mfrow=c(1,1))
+```

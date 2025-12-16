@@ -1,0 +1,161 @@
+# ==============================================================================
+# ADVANCED LDA - FOOD MARKETING (Response Analysis)
+# ==============================================================================
+
+# 1. LIBRARIES AND CONFIGURATION
+# ------------------------------------------------------------------------------
+# Load required packages (install binaries if missing to avoid compilation errors)
+if(!require(MASS)) install.packages("MASS", type="binary")
+if(!require(ggplot2)) install.packages("ggplot2", type="binary")
+if(!require(klaR)) install.packages("klaR", type="binary")
+if(!require(reshape2)) install.packages("reshape2", type="binary")
+if(!require(ROCR)) install.packages("ROCR", type="binary") # For ROC curve
+
+library(MASS)
+library(ggplot2)
+library(klaR)
+library(reshape2)
+library(ROCR)
+
+# Helper function to save plots as high-resolution PNGs
+save_plot <- function(filename, plot_obj = NULL) {
+  png(filename, width = 2400, height = 1600, res = 300)
+  if(!is.null(plot_obj)) print(plot_obj)
+  dev.off()
+  print(paste("Plot saved:", filename))
+}
+
+# 2. DATA LOADING AND PREPARATION
+# ------------------------------------------------------------------------------
+df <- read.csv("ifood_enriched.csv")
+# Convert Response to factor with descriptive labels
+df$Response <- factor(df$Response, levels=c(0,1), labels=c("No", "Yes")) 
+
+# Feature Selection: Only relevant numeric variables + Target
+vars_lda <- c("Income", "Recency", "WineExp", "FruitExp", "MeatExp", 
+              "FishExp", "SweetExp", "GoldExp", "DealsPurc", "WebPurc", 
+              "CatalogPurc", "StorePurc", "WebVisits", "Age", "Response")
+
+# Subset data and remove missing values
+data_lda <- na.omit(df[, names(df) %in% vars_lda])
+
+# Split Train/Test (80/20)
+set.seed(2018)
+n <- nrow(data_lda)
+train_idx <- sample(1:n, size = 0.8 * n)
+train <- data_lda[train_idx, ]
+test <- data_lda[-train_idx, ]
+
+# Scaling (Crucial for interpreting LDA coefficients correctly)
+# We scale both sets based on training data parameters to avoid data leakage
+num_cols <- setdiff(names(train), "Response")
+train_s <- train
+test_s <- test
+for(col in num_cols){
+  mu <- mean(train[[col]])
+  sigma <- sd(train[[col]])
+  train_s[[col]] <- (train[[col]] - mu) / sigma
+  test_s[[col]] <- (test[[col]] - mu) / sigma
+}
+
+# 3. LDA MODELING (Optimized for 'Yes' detection)
+# ------------------------------------------------------------------------------
+# Setting prior = c(0.5, 0.5) balances the class weights, forcing the model
+# to pay equal attention to the minority class (Buyers)
+model_lda <- lda(Response ~ ., data = train_s, prior = c(0.5, 0.5))
+
+# 4. PLOT GENERATION (SAVING AS PNG)
+# ------------------------------------------------------------------------------
+
+# PLOT 1: DISCRIMINANT HISTOGRAM (Class Separation)
+# Shows how well the model separates the two groups on the discriminant axis
+pred_train <- predict(model_lda, train_s)
+ld_data <- data.frame(LD1 = pred_train$x[,1], Response = train_s$Response)
+
+p1 <- ggplot(ld_data, aes(x = LD1, fill = Response)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = c("#FF6B6B", "#4ECDC4")) +
+  labs(title = "LDA Separation: Buyers vs Non-Buyers",
+       subtitle = "Greater separation between peaks indicates better discriminative power",
+       x = "Linear Discriminant Score (LD1)", y = "Density") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+save_plot("LDA_1_Density_Separation.png", p1)
+
+
+# PLOT 2: FEATURE IMPORTANCE (Coefficients)
+# Which variable weighs the most in the purchasing decision?
+coefs <- data.frame(Variable = rownames(model_lda$scaling), 
+                    Weight = model_lda$scaling[,1])
+coefs$AbsWeight <- abs(coefs$Weight)
+coefs <- coefs[order(coefs$AbsWeight, decreasing = TRUE), ] # Sort by importance
+
+p2 <- ggplot(coefs[1:10,], aes(x = reorder(Variable, AbsWeight), y = Weight, fill = Weight > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(values = c("#FF6B6B", "#4ECDC4"), labels = c("Decreases Prob.", "Increases Prob.")) +
+  labs(title = "Top 10 Determinant Factors (LDA Coefficients)",
+       subtitle = "Variables with the highest influence on purchase prediction",
+       x = "Variable", y = "Discriminant Weight", fill = "Effect") +
+  theme_minimal()
+
+save_plot("LDA_2_Feature_Importance.png", p2)
+
+
+# PLOT 3: 2D DECISION BOUNDARIES (PARTIMAT)
+# Visualizing the decision cut between Income and Wine Expenditure
+png("LDA_3_Decision_Boundaries.png", width = 2400, height = 1600, res = 300)
+partimat(Response ~ Income + WineExp, data = train_s, method = "lda",
+         image.colors = c("#ffcccc", "#ccffcc"),
+         main = "Decision Boundary: Income vs Wine Exp")
+dev.off()
+
+
+# PLOT 4: ROC CURVE (Model Quality)
+pred_test <- predict(model_lda, test_s)
+# Get probabilities for class "Yes"
+probs <- pred_test$posterior[, "Yes"]
+
+pred_rocr <- prediction(probs, test_s$Response)
+perf_rocr <- performance(pred_rocr, "tpr", "fpr")
+auc <- performance(pred_rocr, measure = "auc")@y.values[[1]]
+
+png("LDA_4_ROC_Curve.png", width = 2000, height = 2000, res = 300)
+plot(perf_rocr, colorize = TRUE, lwd = 3, 
+     main = paste("ROC Curve (AUC =", round(auc, 3), ")"))
+abline(a = 0, b = 1, lty = 2, col = "gray")
+text(0.6, 0.2, "A good model stays far from the diagonal", col="gray40", cex=0.8)
+dev.off()
+
+
+# PLOT 5: CONFIDENCE ELLIPSES (Income vs WineExp)
+# Visualizing where the customers actually fall
+p5 <- ggplot(train_s, aes(x = Income, y = WineExp, color = Response)) +
+  geom_point(alpha = 0.4) +
+  stat_ellipse(type = "norm", lwd = 1.2) + # Normality ellipses (95%)
+  scale_color_manual(values = c("#FF6B6B", "#4ECDC4")) +
+  labs(title = "Customer Distribution: Income vs Wine",
+       subtitle = "Ellipses represent the 95% confidence region for each group",
+       x = "Income (Scaled)", y = "Wine Expenditure (Scaled)") +
+  theme_minimal()
+
+save_plot("LDA_5_Ellipses.png", p5)
+
+# 5. FINAL NUMERICAL RESULTS
+# ------------------------------------------------------------------------------
+cm <- table(Actual = test_s$Response, Predicted = pred_test$class)
+acc <- sum(diag(cm)) / sum(cm)
+sens <- cm[2,2] / sum(cm[2,])
+spec <- cm[1,1] / sum(cm[1,])
+
+cat("\n==========================================\n")
+cat(" FINAL LDA RESULTS (Response)\n")
+cat("==========================================\n")
+print(cm)
+cat("\nGlobal Accuracy:", round(acc, 4))
+cat("\nSensitivity (Recall - Ability to detect 'Yes'):", round(sens, 4))
+cat("\nSpecificity (Ability to detect 'No'):", round(spec, 4))
+cat("\nAUC (Area Under Curve):", round(auc, 4), "\n")
+cat("==========================================\n")
+cat("Images saved to the working directory.\n")
